@@ -253,94 +253,118 @@ public class SnappAccessibilityService extends AccessibilityService {
         }
     }
 
-    private void analyzeTrip(
-            String rawText) {
+    
+private void analyzeTrip(String rawText) {
+    if (!enabled || floatingButton == null) {
+        return;
+    }
 
-        String text =
-                normalizeDigits(rawText)
-                        .toLowerCase(Locale.ROOT);
+    String text = normalizeDigits(rawText)
+            .toLowerCase(Locale.ROOT);
 
-        double distance =
-                findTotalDistance(text);
+    Pattern kmPattern = Pattern.compile(
+            "(\\d+(?:[\\.,]\\d+)?)\\s*(?:km|کیلومتر|کيلومتر)"
+    );
 
-        int minutes =
-                findTotalMinutes(text);
+    Matcher kmMatcher = kmPattern.matcher(text);
 
-        Long fare =
-                findFare(text);
+    double pickupKm = 0;
+    double tripKm = 0;
 
-        if (distance <= 0 ||
-                minutes <= 0 ||
-                fare == null) {
-            return;
+    if (kmMatcher.find()) {
+        try {
+            pickupKm = Double.parseDouble(
+                    kmMatcher.group(1).replace(',', '.')
+            );
+        } catch (Exception ignored) {
         }
+    }
 
-        double farePerKm =
-                (double) fare / distance;
+    if (kmMatcher.find()) {
+        try {
+            tripKm = Double.parseDouble(
+                    kmMatcher.group(1).replace(',', '.')
+            );
+        } catch (Exception ignored) {
+        }
+    }
 
-        boolean good =
-                distance <= 10 &&
-                minutes <= 20 &&
-                farePerKm >= 15000;
+    Long fare = findFare(text);
 
-        boolean bad =
-                farePerKm < 10000 ||
-                distance > 15 ||
-                minutes > 35;
+    if (tripKm <= 0 || fare == null || fare <= 0) {
+        return;
+    }
 
-        if (bad) {
+    Pattern minPattern = Pattern.compile(
+            "(\\d+)\\s*(?:min|mins|minute|minutes|دقیقه)"
+    );
 
-            // سفر بد همیشه قرمز
-            setButtonColor(Color.RED);
+    Matcher minMatcher = minPattern.matcher(text);
 
-        } else if (good) {
+    int pickupMinutes = 0;
+    int tripMinutes = 0;
 
-            // سفر خوب + مبدأ زیر ۳ دقیقه = آبی
-            if (hasPickupUnderThreeMinutes(text)) {
-                setButtonColor(Color.BLUE);
-            } else {
-                setButtonColor(Color.GREEN);
-            }
+    if (minMatcher.find()) {
+        try {
+            pickupMinutes =
+                    Integer.parseInt(minMatcher.group(1));
+        } catch (Exception ignored) {
+        }
+    }
 
+    if (minMatcher.find()) {
+        try {
+            tripMinutes =
+                    Integer.parseInt(minMatcher.group(1));
+        } catch (Exception ignored) {
+        }
+    }
+
+    if (tripMinutes <= 0) {
+        return;
+    }
+
+    double totalDriverKm =
+            pickupKm + tripKm;
+
+    if (totalDriverKm <= 0) {
+        return;
+    }
+
+    double farePerKm =
+            (double) fare / totalDriverKm;
+
+    boolean bad =
+            farePerKm < 10000
+            || totalDriverKm > 15
+            || tripMinutes > 35;
+
+    boolean good =
+            totalDriverKm <= 10
+            && tripMinutes <= 20
+            && farePerKm >= 15000;
+
+    int resultColor;
+
+    if (bad) {
+        resultColor = Color.RED;
+
+    } else if (good) {
+
+        if (pickupMinutes >= 0 && pickupMinutes < 3) {
+            resultColor = Color.BLUE;
         } else {
-
-            setButtonColor(Color.YELLOW);
-        }
-    }
-
-    private boolean hasPickupUnderThreeMinutes(
-            String text) {
-
-        Pattern pattern =
-                Pattern.compile(
-                        "(\\d+)\\s*" +
-                        "(?:min|mins|minute|minutes|دقیقه)"
-                );
-
-        Matcher matcher =
-                pattern.matcher(text);
-
-        while (matcher.find()) {
-
-            try {
-
-                int value =
-                        Integer.parseInt(
-                                matcher.group(1)
-                        );
-
-                if (value >= 0 && value < 3) {
-                    return true;
-                }
-
-            } catch (Exception ignored) {
-            }
+            resultColor = Color.GREEN;
         }
 
-        return false;
+    } else {
+        resultColor = Color.YELLOW;
     }
 
-    private double findTotalDistance(
+    setButtonColor(resultColor);
+}
+
+private double findTotalDistance(
             String text) {
 
         double totalKm = 0;
