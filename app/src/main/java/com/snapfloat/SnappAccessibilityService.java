@@ -255,7 +255,7 @@ public class SnappAccessibilityService extends AccessibilityService {
 
     
 private void analyzeTrip(String rawText) {
-    if (!enabled || floatingButton == null) {
+    if (floatingButton == null) {
         return;
     }
 
