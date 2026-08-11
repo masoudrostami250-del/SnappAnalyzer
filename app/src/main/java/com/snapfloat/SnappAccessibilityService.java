@@ -296,21 +296,14 @@ private void dumpNode(
 }
 
 private void analyzeTrip(String rawText) {
-    if (floatingButton == null || rawText == null) {
+    if (floatingButton == null || rawText == null || !analyzerEnabled) {
         return;
     }
 
     String text = normalizeDigits(rawText)
             .toLowerCase(Locale.ROOT);
 
-    /*
-     * فقط فاصله‌هایی که کنار km / کیلومتر هستند استخراج می‌شوند.
-     * مقدار اول = فاصله تا مبدأ
-     * مقدار دوم = مسافت خود سفر
-     */
-
-    java.util.ArrayList<Double> distances =
-            new java.util.ArrayList<>();
+    ArrayList<Double> distances = new ArrayList<>();
 
     Matcher kmMatcher = Pattern.compile(
             "(\\d+(?:[\\.,]\\d+)?)\\s*(?:km|کیلومتر|کيلومتر)"
@@ -329,27 +322,16 @@ private void analyzeTrip(String rawText) {
         }
     }
 
-    /*
-     * اگر هیچ فاصله‌ای پیدا نشد، سفید بماند.
-     */
     if (distances.isEmpty()) {
         setButtonColor(Color.WHITE);
         return;
     }
 
-    /*
-     * اگر دو فاصله وجود داشته باشد،
-     * فاصله دوم مسافت واقعی سفر است.
-     *
-     * فاصله تا مبدأ اصلاً در محاسبه کرایه/کیلومتر وارد نمی‌شود.
-     */
-    double tripKm;
-
-    if (distances.size() >= 2) {
-        tripKm = distances.get(1);
-    } else {
-        tripKm = distances.get(0);
-    }
+    // مقدار دوم = مسافت واقعی سفر
+    // اگر فقط یک مسافت وجود داشت، همان را مسافت سفر در نظر می‌گیریم.
+    double tripKm = distances.size() >= 2
+            ? distances.get(1)
+            : distances.get(0);
 
     if (tripKm <= 0) {
         setButtonColor(Color.WHITE);
@@ -363,18 +345,11 @@ private void analyzeTrip(String rawText) {
         return;
     }
 
-    /*
-     * قانون نهایی:
-     *
-     * کرایه ÷ مسافت واقعی سفر
-     *
-     * >= 15000 تومان/کیلومتر  => آبی
-     * <  15000 تومان/کیلومتر  => مشکی
-     */
+    // فقط مسافت واقعی سفر در محاسبه استفاده می‌شود.
+    double farePerKm = (double) fare / tripKm;
 
-    double farePerKm =
-            (double) fare / tripKm;
-
+    // ۱۵ هزار تومان به ازای هر کیلومتر = آبی
+    // کمتر از ۱۵ هزار تومان = مشکی
     if (farePerKm >= 15000.0) {
         setButtonColor(Color.BLUE);
     } else {
@@ -382,94 +357,7 @@ private void analyzeTrip(String rawText) {
     }
 }
 
-private double findTotalDistance(
-            String text) {
-
-        double totalKm = 0;
-
-        Pattern kmPattern =
-                Pattern.compile(
-                        "(\\d+(?:[\\.,]\\d+)?)\\s*" +
-                        "(?:km|کیلومتر|کيلومتر)"
-                );
-
-        Matcher kmMatcher =
-                kmPattern.matcher(text);
-
-        while (kmMatcher.find()) {
-
-            try {
-
-                String value =
-                        kmMatcher.group(1)
-                                .replace(',', '.');
-
-                totalKm +=
-                        Double.parseDouble(value);
-
-            } catch (Exception ignored) {
-            }
-        }
-
-        Pattern meterPattern =
-                Pattern.compile(
-                        "(\\d+)\\s*" +
-                        "(?:m|متر)"
-                );
-
-        Matcher meterMatcher =
-                meterPattern.matcher(text);
-
-        while (meterMatcher.find()) {
-
-            try {
-
-                double meters =
-                        Double.parseDouble(
-                                meterMatcher.group(1)
-                        );
-
-                totalKm +=
-                        meters / 1000.0;
-
-            } catch (Exception ignored) {
-            }
-        }
-
-        return totalKm;
-    }
-
-    private int findTotalMinutes(
-            String text) {
-
-        Pattern pattern =
-                Pattern.compile(
-                        "(\\d+)\\s*" +
-                        "(?:min|mins|minute|minutes|دقیقه)"
-                );
-
-        Matcher matcher =
-                pattern.matcher(text);
-
-        int total = 0;
-
-        while (matcher.find()) {
-
-            try {
-
-                total +=
-                        Integer.parseInt(
-                                matcher.group(1)
-                        );
-
-            } catch (Exception ignored) {
-            }
-        }
-
-        return total;
-    }
-
-    private Long findFare(
+private Long findFare(
             String text) {
 
         Pattern before =
