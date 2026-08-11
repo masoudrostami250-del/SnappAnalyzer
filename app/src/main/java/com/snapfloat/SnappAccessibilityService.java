@@ -60,7 +60,7 @@ public class SnappAccessibilityService extends AccessibilityService {
         floatingButton = new Button(this);
         floatingButton.setText("");
 
-        setButtonColor(Color.YELLOW);
+        setButtonColor(Color.WHITE);
 
         params = new WindowManager.LayoutParams(
                 90,
@@ -304,9 +304,9 @@ private void analyzeTrip(String rawText) {
             .toLowerCase(Locale.ROOT);
 
     /*
-     * فقط اعداد واضح مربوط به سفر را استخراج می‌کنیم.
-     * فاصله و زمان‌های موجود در سایر بخش‌های صفحه نباید
-     * به صورت مجموع کل صفحه وارد محاسبه شوند.
+     * فقط فاصله‌هایی که کنار km / کیلومتر هستند استخراج می‌شوند.
+     * مقدار اول = فاصله تا مبدأ
+     * مقدار دوم = مسافت خود سفر
      */
 
     java.util.ArrayList<Double> distances =
@@ -329,89 +329,57 @@ private void analyzeTrip(String rawText) {
         }
     }
 
+    /*
+     * اگر هیچ فاصله‌ای پیدا نشد، سفید بماند.
+     */
     if (distances.isEmpty()) {
+        setButtonColor(Color.WHITE);
         return;
     }
 
     /*
-     * در کارت سفر معمولاً دو فاصله داریم:
-     * فاصله تا مبدأ و فاصله خود سفر.
+     * اگر دو فاصله وجود داشته باشد،
+     * فاصله دوم مسافت واقعی سفر است.
      *
-     * برای جلوگیری از ورود اعداد نقشه و سایر بخش‌ها،
-     * فقط دو مقدار اول معتبر را در تحلیل استفاده می‌کنیم.
+     * فاصله تا مبدأ اصلاً در محاسبه کرایه/کیلومتر وارد نمی‌شود.
      */
-    double pickupKm = distances.get(0);
-    double tripKm = distances.size() >= 2
-            ? distances.get(1)
-            : distances.get(0);
+    double tripKm;
+
+    if (distances.size() >= 2) {
+        tripKm = distances.get(1);
+    } else {
+        tripKm = distances.get(0);
+    }
+
+    if (tripKm <= 0) {
+        setButtonColor(Color.WHITE);
+        return;
+    }
 
     Long fare = findFare(text);
 
-    if (fare == null || fare <= 0 || tripKm <= 0) {
+    if (fare == null || fare <= 0) {
+        setButtonColor(Color.WHITE);
         return;
     }
 
-    java.util.ArrayList<Integer> minutes =
-            new java.util.ArrayList<>();
-
-    Matcher minMatcher = Pattern.compile(
-            "(\\d+)\\s*(?:min|mins|minute|minutes|دقیقه)"
-    ).matcher(text);
-
-    while (minMatcher.find()) {
-        try {
-            int value = Integer.parseInt(minMatcher.group(1));
-
-            if (value >= 0 && value <= 300) {
-                minutes.add(value);
-            }
-        } catch (Exception ignored) {
-        }
-    }
-
-    if (minutes.isEmpty()) {
-        return;
-    }
-
-    int pickupMinutes = minutes.get(0);
-    int tripMinutes = minutes.size() >= 2
-            ? minutes.get(1)
-            : minutes.get(0);
-
-    double totalDriverKm = pickupKm + tripKm;
-
-    if (totalDriverKm <= 0) {
-        return;
-    }
+    /*
+     * قانون نهایی:
+     *
+     * کرایه ÷ مسافت واقعی سفر
+     *
+     * >= 15000 تومان/کیلومتر  => آبی
+     * <  15000 تومان/کیلومتر  => مشکی
+     */
 
     double farePerKm =
-            (double) fare / totalDriverKm;
+            (double) fare / tripKm;
 
-    boolean bad =
-            farePerKm < 10000
-            || totalDriverKm > 15
-            || tripMinutes > 35;
-
-    boolean good =
-            totalDriverKm <= 10
-            && tripMinutes <= 20
-            && farePerKm >= 15000;
-
-    int resultColor;
-
-    if (bad) {
-        resultColor = Color.RED;
-    } else if (good) {
-        if (pickupMinutes >= 0 && pickupMinutes < 3) {
-            resultColor = Color.BLUE;
-        } else {
-            resultColor = Color.GREEN;
-        }
+    if (farePerKm >= 15000.0) {
+        setButtonColor(Color.BLUE);
     } else {
-        resultColor = Color.YELLOW;
+        setButtonColor(Color.BLACK);
     }
-
-    setButtonColor(resultColor);
 }
 
 private double findTotalDistance(
