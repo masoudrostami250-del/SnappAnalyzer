@@ -6,6 +6,7 @@ import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -190,6 +191,14 @@ public class SnappAccessibilityService extends AccessibilityService {
         String text =
                 collectText(root);
 
+        // DIAGNOSTIC: dump Accessibility tree for Snapp trip card
+        try {
+            Log.d("SnapFloatTree", "===== SNAPFLOAT EVENT =====");
+            dumpNode(root, 0);
+            Log.d("SnapFloatTree", "===== END SNAPFLOAT EVENT =====");
+        } catch (Exception ignored) {
+        }
+
         if (text.isEmpty() ||
                 text.equals(lastText)) {
             return;
@@ -254,78 +263,122 @@ public class SnappAccessibilityService extends AccessibilityService {
     }
 
     
+private void dumpNode(
+        AccessibilityNodeInfo node,
+        int depth) {
+
+    if (node == null || depth > 12) {
+        return;
+    }
+
+    StringBuilder indent = new StringBuilder();
+    for (int i = 0; i < depth; i++) {
+        indent.append("  ");
+    }
+
+    CharSequence nodeText = node.getText();
+    CharSequence desc = node.getContentDescription();
+    CharSequence className = node.getClassName();
+
+    String line =
+            indent +
+            "CLASS=" + className +
+            " TEXT=" + nodeText +
+            " DESC=" + desc +
+            " CLICK=" + node.isClickable() +
+            " ENABLED=" + node.isEnabled();
+
+    Log.d("SnapFloatTree", line);
+
+    for (int i = 0; i < node.getChildCount(); i++) {
+        dumpNode(node.getChild(i), depth + 1);
+    }
+}
+
 private void analyzeTrip(String rawText) {
-    if (floatingButton == null) {
+    if (floatingButton == null || rawText == null) {
         return;
     }
 
     String text = normalizeDigits(rawText)
             .toLowerCase(Locale.ROOT);
 
-    Pattern kmPattern = Pattern.compile(
+    /*
+     * فقط اعداد واضح مربوط به سفر را استخراج می‌کنیم.
+     * فاصله و زمان‌های موجود در سایر بخش‌های صفحه نباید
+     * به صورت مجموع کل صفحه وارد محاسبه شوند.
+     */
+
+    java.util.ArrayList<Double> distances =
+            new java.util.ArrayList<>();
+
+    Matcher kmMatcher = Pattern.compile(
             "(\\d+(?:[\\.,]\\d+)?)\\s*(?:km|کیلومتر|کيلومتر)"
-    );
+    ).matcher(text);
 
-    Matcher kmMatcher = kmPattern.matcher(text);
-
-    double pickupKm = 0;
-    double tripKm = 0;
-
-    if (kmMatcher.find()) {
+    while (kmMatcher.find()) {
         try {
-            pickupKm = Double.parseDouble(
+            double value = Double.parseDouble(
                     kmMatcher.group(1).replace(',', '.')
             );
+
+            if (value > 0 && value <= 100) {
+                distances.add(value);
+            }
         } catch (Exception ignored) {
         }
     }
 
-    if (kmMatcher.find()) {
-        try {
-            tripKm = Double.parseDouble(
-                    kmMatcher.group(1).replace(',', '.')
-            );
-        } catch (Exception ignored) {
-        }
+    if (distances.isEmpty()) {
+        return;
     }
+
+    /*
+     * در کارت سفر معمولاً دو فاصله داریم:
+     * فاصله تا مبدأ و فاصله خود سفر.
+     *
+     * برای جلوگیری از ورود اعداد نقشه و سایر بخش‌ها،
+     * فقط دو مقدار اول معتبر را در تحلیل استفاده می‌کنیم.
+     */
+    double pickupKm = distances.get(0);
+    double tripKm = distances.size() >= 2
+            ? distances.get(1)
+            : distances.get(0);
 
     Long fare = findFare(text);
 
-    if (tripKm <= 0 || fare == null || fare <= 0) {
+    if (fare == null || fare <= 0 || tripKm <= 0) {
         return;
     }
 
-    Pattern minPattern = Pattern.compile(
+    java.util.ArrayList<Integer> minutes =
+            new java.util.ArrayList<>();
+
+    Matcher minMatcher = Pattern.compile(
             "(\\d+)\\s*(?:min|mins|minute|minutes|دقیقه)"
-    );
+    ).matcher(text);
 
-    Matcher minMatcher = minPattern.matcher(text);
-
-    int pickupMinutes = 0;
-    int tripMinutes = 0;
-
-    if (minMatcher.find()) {
+    while (minMatcher.find()) {
         try {
-            pickupMinutes =
-                    Integer.parseInt(minMatcher.group(1));
+            int value = Integer.parseInt(minMatcher.group(1));
+
+            if (value >= 0 && value <= 300) {
+                minutes.add(value);
+            }
         } catch (Exception ignored) {
         }
     }
 
-    if (minMatcher.find()) {
-        try {
-            tripMinutes =
-                    Integer.parseInt(minMatcher.group(1));
-        } catch (Exception ignored) {
-        }
-    }
-
-    if (tripMinutes <= 0) {
+    if (minutes.isEmpty()) {
         return;
     }
 
-    double totalDriverKm =
-            pickupKm + tripKm;
+    int pickupMinutes = minutes.get(0);
+    int tripMinutes = minutes.size() >= 2
+            ? minutes.get(1)
+            : minutes.get(0);
+
+    double totalDriverKm = pickupKm + tripKm;
 
     if (totalDriverKm <= 0) {
         return;
@@ -348,15 +401,12 @@ private void analyzeTrip(String rawText) {
 
     if (bad) {
         resultColor = Color.RED;
-
     } else if (good) {
-
         if (pickupMinutes >= 0 && pickupMinutes < 3) {
             resultColor = Color.BLUE;
         } else {
             resultColor = Color.GREEN;
         }
-
     } else {
         resultColor = Color.YELLOW;
     }
