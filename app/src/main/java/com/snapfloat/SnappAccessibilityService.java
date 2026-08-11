@@ -15,6 +15,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Button;
 
+import java.util.ArrayList;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,6 +27,7 @@ public class SnappAccessibilityService extends AccessibilityService {
     private WindowManager windowManager;
     private Button floatingButton;
     private WindowManager.LayoutParams params;
+private boolean analyzerEnabled = true;
 
     private final Handler handler =
             new Handler(Looper.getMainLooper());
