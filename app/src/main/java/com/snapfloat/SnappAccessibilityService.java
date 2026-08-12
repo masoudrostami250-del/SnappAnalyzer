@@ -359,37 +359,52 @@ private void collectTripCandidates(
         return;
     }
 
-    StringBuilder local = new StringBuilder();
-
-    collect(node, local);
-
-    String text = local.toString();
-
     /*
-     * فقط زیرشاخه‌هایی که هم کرایه و هم فاصله دارند
-     * به عنوان کاندیدای کارت سفر بررسی می‌شوند.
+     * فقط خود Nodeهایی که متن مستقیم دارند بررسی می‌شوند.
+     * متن کل صفحه یا حباب‌های نقشه نباید به عنوان کارت سفر
+     * وارد تحلیل شوند.
      */
-    String normalized = normalizeDigits(text)
-            .toLowerCase(Locale.ROOT);
+    CharSequence directText = node.getText();
+    CharSequence directDesc = node.getContentDescription();
 
-    boolean hasFare =
-            normalized.contains("تومان") ||
-            normalized.contains("تومن") ||
-            normalized.contains("ریال");
+    StringBuilder own = new StringBuilder();
 
-    boolean hasDistance =
-            normalized.matches("(?s).*\\d+(?:[\\.,]\\d+)?\\s*(?:km|کیلومتر|کيلومتر|متر|m).*");
-
-    if (hasFare && hasDistance && text.length() <= 1200) {
-        cards.add(text);
-        return;
+    if (directText != null) {
+        own.append(" ").append(directText);
     }
 
-    /*
-     * اگر این Node خودش کارت نبود، فرزندان را جداگانه بررسی می‌کنیم.
-     */
+    if (directDesc != null) {
+        own.append(" ").append(directDesc);
+    }
+
+    String ownText = own.toString().trim();
+
+    if (!ownText.isEmpty()) {
+        String normalized = normalizeDigits(ownText)
+                .toLowerCase(Locale.ROOT);
+
+        boolean hasFare =
+                normalized.contains("تومان") ||
+                normalized.contains("تومن") ||
+                normalized.contains("ریال");
+
+        boolean hasDistance =
+                normalized.matches(
+                        "(?s).*\\d+(?:[\\.,]\\d+)?\\s*" +
+                        "(?:km|کیلومتر|کيلومتر|متر|m).*"
+                );
+
+        if (hasFare && hasDistance) {
+            cards.add(ownText);
+            return;
+        }
+    }
+
     for (int i = 0; i < node.getChildCount(); i++) {
-        collectTripCandidates(node.getChild(i), cards);
+        collectTripCandidates(
+                node.getChild(i),
+                cards
+        );
     }
 }
 
