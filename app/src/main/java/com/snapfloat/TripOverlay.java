@@ -1,6 +1,6 @@
 package com.snapfloat;
 
-import android.content.Context;
+import android.accessibilityservice.AccessibilityService;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
@@ -8,34 +8,39 @@ import android.view.View;
 import android.view.WindowManager;
 
 public final class TripOverlay {
+
     private static View indicator;
+    private static WindowManager windowManager;
 
     private TripOverlay() {}
 
-    public static void show(Context context) {
+    public static void show(AccessibilityService service) {
         if (indicator != null) return;
 
-        View v = new View(context);
-        v.setBackground(makeCircle(Color.BLACK));
+        indicator = new View(service);
+        indicator.setBackground(makeCircle(Color.BLACK));
+        indicator.setContentDescription("Snapp Analyzer");
 
-        WindowManager.LayoutParams p = new WindowManager.LayoutParams(
-            44,
-            44,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            -3
-        );
+        WindowManager.LayoutParams params =
+                new WindowManager.LayoutParams(
+                        46,
+                        46,
+                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                        -3
+                );
 
-        p.gravity = Gravity.TOP | Gravity.END;
-        p.x = 12;
-        p.y = 180;
+        params.gravity = Gravity.TOP | Gravity.END;
+        params.x = 10;
+        params.y = 180;
 
-        WindowManager wm =
-            (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        windowManager =
+                (WindowManager) service.getSystemService(
+                        AccessibilityService.WINDOW_SERVICE
+                );
 
-        wm.addView(v, p);
-        indicator = v;
+        windowManager.addView(indicator, params);
     }
 
     public static void good() {
@@ -57,9 +62,20 @@ public final class TripOverlay {
     }
 
     private static GradientDrawable makeCircle(int color) {
-        GradientDrawable d = new GradientDrawable();
-        d.setShape(GradientDrawable.OVAL);
-        d.setColor(color);
-        return d;
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.OVAL);
+        drawable.setColor(color);
+        return drawable;
+    }
+
+    public static void hide() {
+        if (indicator != null && windowManager != null) {
+            try {
+                windowManager.removeView(indicator);
+            } catch (Exception ignored) {}
+        }
+
+        indicator = null;
+        windowManager = null;
     }
 }
