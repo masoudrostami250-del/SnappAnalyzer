@@ -37,18 +37,10 @@ public class MainActivity extends Activity {
         root.addView(rules);
 
         Button overlay = new Button(this);
-        overlay.setText("فعال کردن دکمه شناور");
-        overlay.setOnClickListener(v -> {
-            if (!Settings.canDrawOverlays(this)) {
-                Intent i = new Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:" + getPackageName())
-                );
-                startActivity(i);
-            } else {
-                TripOverlay.show(this);
-            }
-        });
+        overlay.setText("فعال کردن دکمه تحلیل در Accessibility");
+        overlay.setOnClickListener(v ->
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        );
         root.addView(overlay);
 
         Button accessibility = new Button(this);
