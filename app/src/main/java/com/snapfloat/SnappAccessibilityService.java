@@ -403,20 +403,10 @@ private int getTripColor(String rawText) {
 
     Long fare = findFare(text);
 
-    Log.d("SnapFloatDebug",
-            "CARD_TEXT=" + text);
-
-    Log.d("SnapFloatDebug",
-            "CARD_FARE=" + fare);
-
     if (fare == null || fare <= 0) {
         return Color.TRANSPARENT;
     }
 
-    /*
-     * فاصله‌های داخل همین کارت سفر را استخراج می‌کنیم.
-     * متر به کیلومتر تبدیل می‌شود.
-     */
     ArrayList<Double> distances = new ArrayList<>();
 
     Matcher distanceMatcher = Pattern.compile(
@@ -440,7 +430,6 @@ private int getTripColor(String rawText) {
             if (value > 0 && value <= 100) {
                 distances.add(value);
             }
-
         } catch (Exception ignored) {
         }
     }
@@ -450,7 +439,8 @@ private int getTripColor(String rawText) {
     }
 
     /*
-     * فاصله‌های تکراری Accessibility را حذف می‌کنیم.
+     * Accessibility ممکن است یک فاصله را چند بار تکرار کند.
+     * ترتیب اولین وقوع فاصله‌ها را حفظ می‌کنیم.
      */
     ArrayList<Double> uniqueDistances = new ArrayList<>();
 
@@ -474,24 +464,22 @@ private int getTripColor(String rawText) {
     }
 
     /*
-     * در کارت سفر معمولاً فاصله تا مبدأ بزرگ‌تر از
-     * مسافت واقعی سفر است.
+     * در کارت اسنپ:
      *
-     * بنابراین وقتی بیش از یک فاصله داریم، کوچک‌ترین
-     * فاصله را به‌عنوان مسافت واقعی سفر انتخاب می‌کنیم.
+     * فاصله اول = فاصله راننده تا مبدأ
+     * فاصله دوم = مسافت واقعی سفر
      *
-     * مثال:
-     * 1 km       = فاصله تا مبدأ
-     * 713 متر    = 0.713 km مسافت واقعی سفر
+     * بنابراین اگر دو فاصله متفاوت داریم، فاصله دوم را
+     * به عنوان مسافت واقعی سفر استفاده می‌کنیم.
      *
-     * 0.713 انتخاب می‌شود.
+     * اگر فقط یک فاصله داریم، همان را استفاده می‌کنیم.
      */
-    double tripKm = uniqueDistances.get(0);
+    double tripKm;
 
-    for (Double d : uniqueDistances) {
-        if (d > 0 && d < tripKm) {
-            tripKm = d;
-        }
+    if (uniqueDistances.size() >= 2) {
+        tripKm = uniqueDistances.get(1);
+    } else {
+        tripKm = uniqueDistances.get(0);
     }
 
     if (tripKm <= 0) {
@@ -500,10 +488,15 @@ private int getTripColor(String rawText) {
 
     double farePerKm = (double) fare / tripKm;
 
-    Log.d("SnapFloatDebug",
-            "TRIP_KM=" + tripKm +
+    Log.d(
+            "SnapFloatDebug",
+            "FARE=" + fare +
+            " DISTANCES=" + uniqueDistances +
+            " TRIP_KM=" + tripKm +
             " FARE_PER_KM=" + farePerKm +
-            " COLOR=" + (farePerKm >= 12000.0 ? "BLUE" : "BLACK"));
+            " COLOR=" +
+            (farePerKm >= 12000.0 ? "BLUE" : "BLACK")
+    );
 
     /*
      * 12000 تومان یا بیشتر = آبی
