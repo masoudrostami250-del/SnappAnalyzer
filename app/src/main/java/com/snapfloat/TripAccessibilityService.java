@@ -9,7 +9,6 @@ import android.os.Build;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
-import androidx.core.app.NotificationCompat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -357,25 +356,29 @@ public class TripAccessibilityService extends AccessibilityService {
                                 | PendingIntent.FLAG_IMMUTABLE
                 );
 
-        NotificationCompat.Builder builder =
-                new NotificationCompat.Builder(
-                        this,
-                        CHANNEL_ID
+        Notification.Builder builder;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder = new Notification.Builder(this, CHANNEL_ID);
+        } else {
+            builder = new Notification.Builder(this);
+        }
+
+        builder.setSmallIcon(
+                    android.R.drawable.ic_dialog_info
                 )
-                        .setSmallIcon(
-                                android.R.drawable.ic_dialog_info
-                        )
-                        .setContentTitle(title)
-                        .setContentText(text)
-                        .setStyle(
-                                new NotificationCompat.BigTextStyle()
-                                        .bigText(text)
-                        )
-                        .setPriority(
-                                NotificationCompat.PRIORITY_HIGH
-                        )
-                        .setAutoCancel(false)
-                        .setContentIntent(pendingIntent);
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(
+                        new Notification.BigTextStyle()
+                                .bigText(text)
+                )
+                .setAutoCancel(false)
+                .setContentIntent(pendingIntent);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            builder.setPriority(Notification.PRIORITY_HIGH);
+        }
 
         manager.notify(
                 NOTIFICATION_ID,
