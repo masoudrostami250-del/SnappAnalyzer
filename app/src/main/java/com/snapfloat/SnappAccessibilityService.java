@@ -27,6 +27,8 @@ public class SnappAccessibilityService extends AccessibilityService {
     private WindowManager windowManager;
     private Button floatingButton;
     private WindowManager.LayoutParams params;
+    private final ArrayList<Button> tripButtons = new ArrayList<>();
+    private final ArrayList<WindowManager.LayoutParams> tripParams = new ArrayList<>();
 private boolean analyzerEnabled = true;
 
     private final Handler handler =
