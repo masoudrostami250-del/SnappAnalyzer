@@ -297,25 +297,132 @@ private void dumpNode(
     }
 }
 
-private void analyzeTrip(String rawText) {
-    if (floatingButton == null || rawText == null || !analyzerEnabled) {
+
+private void clearTripButtons() {
+    for (Button button : tripButtons) {
+        try {
+            if (windowManager != null) {
+                windowManager.removeView(button);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    tripButtons.clear();
+    tripParams.clear();
+}
+
+private void analyzeTripCards(AccessibilityNodeInfo root) {
+    if (root == null || windowManager == null || !analyzerEnabled) {
         return;
+    }
+
+    clearTripButtons();
+
+    ArrayList<String> cards = new ArrayList<>();
+    collectTripCandidates(root, cards);
+
+    int index = 0;
+
+    for (String cardText : cards) {
+        String normalized = normalizeDigits(cardText)
+                .toLowerCase(Locale.ROOT)
+                .trim();
+
+        if (normalized.length() < 5) {
+            continue;
+        }
+
+        int color = getTripColor(normalized);
+
+        if (color == Color.TRANSPARENT) {
+            continue;
+        }
+
+        addTripIndicator(color, index);
+        index++;
+
+        // حداکثر 6 سفر هم‌زمان
+        if (index >= 6) {
+            break;
+        }
+    }
+}
+
+private void collectTripCandidates(
+        AccessibilityNodeInfo node,
+        ArrayList<String> cards) {
+
+    if (node == null) {
+        return;
+    }
+
+    StringBuilder local = new StringBuilder();
+
+    collect(node, local);
+
+    String text = local.toString();
+
+    /*
+     * فقط زیرشاخه‌هایی که هم کرایه و هم فاصله دارند
+     * به عنوان کاندیدای کارت سفر بررسی می‌شوند.
+     */
+    String normalized = normalizeDigits(text)
+            .toLowerCase(Locale.ROOT);
+
+    boolean hasFare =
+            normalized.contains("تومان") ||
+            normalized.contains("تومن") ||
+            normalized.contains("ریال");
+
+    boolean hasDistance =
+            normalized.matches("(?s).*\\d+(?:[\\.,]\\d+)?\\s*(?:km|کیلومتر|کيلومتر|متر|m).*");
+
+    if (hasFare && hasDistance && text.length() <= 1200) {
+        cards.add(text);
+        return;
+    }
+
+    /*
+     * اگر این Node خودش کارت نبود، فرزندان را جداگانه بررسی می‌کنیم.
+     */
+    for (int i = 0; i < node.getChildCount(); i++) {
+        collectTripCandidates(node.getChild(i), cards);
+    }
+}
+
+private int getTripColor(String rawText) {
+    if (rawText == null || rawText.trim().isEmpty()) {
+        return Color.TRANSPARENT;
     }
 
     String text = normalizeDigits(rawText)
             .toLowerCase(Locale.ROOT);
 
+    Long fare = findFare(text);
+
+    if (fare == null || fare <= 0) {
+        return Color.TRANSPARENT;
+    }
+
     ArrayList<Double> distances = new ArrayList<>();
 
-    Matcher kmMatcher = Pattern.compile(
-            "(\\d+(?:[\\.,]\\d+)?)\\s*(?:km|کیلومتر|کيلومتر)"
+    Matcher distanceMatcher = Pattern.compile(
+            "(\\d+(?:[\\.,]\\d+)?)\\s*" +
+            "(km|کیلومتر|کيلومتر|متر|m)"
     ).matcher(text);
 
-    while (kmMatcher.find()) {
+    while (distanceMatcher.find()) {
         try {
             double value = Double.parseDouble(
-                    kmMatcher.group(1).replace(',', '.')
+                    distanceMatcher.group(1).replace(',', '.')
             );
+
+            String unit = distanceMatcher.group(2);
+
+            if (unit.equals("متر") || unit.equals("m")) {
+                value = value / 1000.0;
+            }
 
             if (value > 0 && value <= 100) {
                 distances.add(value);
@@ -325,37 +432,99 @@ private void analyzeTrip(String rawText) {
     }
 
     if (distances.isEmpty()) {
-        setButtonColor(Color.WHITE);
-        return;
+        return Color.TRANSPARENT;
     }
 
-    // مقدار دوم = مسافت واقعی سفر
-    // اگر فقط یک مسافت وجود داشت، همان را مسافت سفر در نظر می‌گیریم.
-    double tripKm = distances.size() >= 2
-            ? distances.get(1)
-            : distances.get(0);
+    /*
+     * در هر کارت:
+     * فاصله اول = مبدأ
+     * فاصله دوم = مقصد/مسافت سفر
+     *
+     * اگر فقط یک مقدار باشد همان مقدار استفاده می‌شود.
+     */
+    double tripKm;
+
+    if (distances.size() >= 2) {
+        tripKm = distances.get(1);
+    } else {
+        tripKm = distances.get(0);
+    }
 
     if (tripKm <= 0) {
-        setButtonColor(Color.WHITE);
-        return;
+        return Color.TRANSPARENT;
     }
 
-    Long fare = findFare(text);
-
-    if (fare == null || fare <= 0) {
-        setButtonColor(Color.WHITE);
-        return;
-    }
-
-    // فقط مسافت واقعی سفر در محاسبه استفاده می‌شود.
     double farePerKm = (double) fare / tripKm;
 
-    // ۱۵ هزار تومان به ازای هر کیلومتر = آبی
-    // کمتر از ۱۵ هزار تومان = مشکی
     if (farePerKm >= 15000.0) {
-        setButtonColor(Color.BLUE);
-    } else {
-        setButtonColor(Color.BLACK);
+        return Color.BLUE;
+    }
+
+    return Color.BLACK;
+}
+
+private void addTripIndicator(int color, int index) {
+    try {
+        Button button = new Button(this);
+
+        button.setText("");
+
+        GradientDrawable background =
+                new GradientDrawable();
+
+        background.setShape(
+                GradientDrawable.OVAL
+        );
+
+        background.setColor(color);
+
+        button.setBackground(background);
+
+        WindowManager.LayoutParams p =
+                new WindowManager.LayoutParams(
+                        55,
+                        55,
+                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        p.gravity = Gravity.TOP | Gravity.START;
+
+        /*
+         * نشانگرهای سفر به صورت عمودی کنار هم قرار می‌گیرند.
+         * دکمه اصلی همچنان جداگانه باقی می‌ماند.
+         */
+        p.x = 25;
+        p.y = 410 + (index * 70);
+
+        windowManager.addView(button, p);
+
+        tripButtons.add(button);
+        tripParams.add(p);
+
+    } catch (Exception ignored) {
+    }
+}
+
+private void analyzeTrip(String rawText) {
+    /*
+     * تحلیل اصلی اکنون توسط analyzeTripCards انجام می‌شود.
+     * این متد فقط برای سازگاری با Runnable قبلی نگه داشته شده است.
+     */
+    if (floatingButton == null || !analyzerEnabled) {
+        return;
+    }
+
+    try {
+        AccessibilityNodeInfo root =
+                getRootInActiveWindow();
+
+        if (root != null) {
+            analyzeTripCards(root);
+        }
+    } catch (Exception ignored) {
     }
 }
 
