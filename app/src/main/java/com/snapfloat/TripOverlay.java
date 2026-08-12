@@ -3,6 +3,8 @@ package com.snapfloat;
 import android.accessibilityservice.AccessibilityService;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -11,71 +13,177 @@ public final class TripOverlay {
 
     private static View indicator;
     private static WindowManager windowManager;
+    private static AccessibilityService service;
+    private static final Handler handler =
+            new Handler(Looper.getMainLooper());
+
+    private static int currentColor = Color.BLACK;
 
     private TripOverlay() {}
 
-    public static void show(AccessibilityService service) {
-        if (indicator != null) return;
+    public static void show(AccessibilityService accessibilityService) {
 
-        indicator = new View(service);
-        indicator.setBackground(makeCircle(Color.BLACK));
-        indicator.setContentDescription("Snapp Analyzer");
+        service = accessibilityService;
 
-        WindowManager.LayoutParams params =
-                new WindowManager.LayoutParams(
-                        46,
-                        46,
-                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                        -3
-                );
-
-        params.gravity = Gravity.TOP | Gravity.END;
-        params.x = 10;
-        params.y = 180;
-
-        windowManager =
-                (WindowManager) service.getSystemService(
-                        AccessibilityService.WINDOW_SERVICE
-                );
-
-        windowManager.addView(indicator, params);
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                ensureVisible();
+            }
+        });
     }
 
-    public static void good() {
-        setColor(Color.rgb(25, 118, 210));
-    }
+    /*
+     * مهم‌ترین بخش:
+     * اگر View به هر دلیلی از WindowManager خارج شده باشد،
+     * reference قدیمی را دور می‌اندازیم و دوباره می‌سازیم.
+     */
+    public static void ensureVisible() {
 
-    public static void bad() {
-        setColor(Color.BLACK);
-    }
+        if (service == null) return;
 
-    public static void unknown() {
-        setColor(Color.DKGRAY);
-    }
+        if (indicator != null && indicator.getWindowToken() != null) {
+            return;
+        }
 
-    private static void setColor(int color) {
-        if (indicator != null) {
-            indicator.setBackground(makeCircle(color));
+        removeBrokenView();
+
+        try {
+
+            indicator = new View(service);
+            indicator.setBackground(makeCircle(currentColor));
+            indicator.setContentDescription("Snapp Analyzer");
+
+            WindowManager.LayoutParams params =
+                    new WindowManager.LayoutParams(
+                            46,
+                            46,
+                            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                                    | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                                    | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                            -3
+                    );
+
+            params.gravity =
+                    Gravity.TOP | Gravity.END;
+
+            params.x = 10;
+            params.y = 180;
+
+            windowManager =
+                    (WindowManager)
+                            service.getSystemService(
+                                    AccessibilityService.WINDOW_SERVICE
+                            );
+
+            if (windowManager == null) {
+                indicator = null;
+                return;
+            }
+
+            windowManager.addView(
+                    indicator,
+                    params
+            );
+
+        } catch (Exception e) {
+
+            indicator = null;
+            windowManager = null;
         }
     }
 
-    private static GradientDrawable makeCircle(int color) {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setShape(GradientDrawable.OVAL);
+    /*
+     * این متد باید هنگام Accessibility Event نیز فراخوانی شود.
+     */
+    public static void keepAlive() {
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                ensureVisible();
+            }
+        });
+    }
+
+    public static void good() {
+
+        currentColor =
+                Color.rgb(25, 118, 210);
+
+        setColor(currentColor);
+    }
+
+    public static void bad() {
+
+        currentColor = Color.BLACK;
+
+        setColor(currentColor);
+    }
+
+    public static void unknown() {
+
+        currentColor =
+                Color.DKGRAY;
+
+        setColor(currentColor);
+    }
+
+    private static void setColor(int color) {
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+
+                ensureVisible();
+
+                if (indicator != null) {
+                    indicator.setBackground(
+                            makeCircle(color)
+                    );
+                }
+            }
+        });
+    }
+
+    private static GradientDrawable makeCircle(
+            int color) {
+
+        GradientDrawable drawable =
+                new GradientDrawable();
+
+        drawable.setShape(
+                GradientDrawable.OVAL
+        );
+
         drawable.setColor(color);
+
         return drawable;
     }
 
-    public static void hide() {
-        if (indicator != null && windowManager != null) {
+    private static void removeBrokenView() {
+
+        if (indicator != null
+                && windowManager != null) {
+
             try {
                 windowManager.removeView(indicator);
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
 
         indicator = null;
         windowManager = null;
+    }
+
+    public static void hide() {
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                removeBrokenView();
+            }
+        });
     }
 }

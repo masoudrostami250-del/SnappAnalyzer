@@ -50,6 +50,9 @@ public class TripAccessibilityService extends AccessibilityService {
 
         if (event == null) return;
 
+        // Keep floating button alive when Snapp changes its screen.
+        TripOverlay.keepAlive();
+
         int type = event.getEventType();
 
         if (type != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
