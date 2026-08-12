@@ -1,8 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+
     <application
         android:theme="@style/AppTheme"
-        android:label="SnapFloat 11"
+        android:label="Snapp Analyzer"
         android:allowBackup="false"
         android:supportsRtl="true">
 
@@ -16,7 +18,7 @@
         </activity>
 
         <service
-            android:name=".SnappAccessibilityService"
+            android:name=".TripAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="false">
 
@@ -30,5 +32,4 @@
         </service>
 
     </application>
-
 </manifest>

@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">SnapFloat 11</string>
-    <string name="accessibility_description">تحلیل سفرهای اسنپ</string>
+    <string name="app_name">Snapp Analyzer</string>
+    <string name="accessibility_description">تحلیل مستقل مبلغ و مسافت هر سفر اسنپ</string>
 </resources>
