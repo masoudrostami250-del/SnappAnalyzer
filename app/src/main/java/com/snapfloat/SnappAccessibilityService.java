@@ -2,8 +2,11 @@ package com.snapfloat;
 
 import android.accessibilityservice.AccessibilityService;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.PixelFormat;
+import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -314,22 +317,41 @@ private void clearTripButtons() {
     tripParams.clear();
 }
 
+
+private static class TripCandidate {
+    String text;
+    Rect bounds;
+
+    TripCandidate(String text, Rect bounds) {
+        this.text = text;
+        this.bounds = bounds;
+    }
+}
+
 private void analyzeTripCards(AccessibilityNodeInfo root) {
+
     if (root == null || windowManager == null || !analyzerEnabled) {
         return;
     }
 
     clearTripButtons();
 
-    ArrayList<String> cards = new ArrayList<>();
+    ArrayList<TripCandidate> cards = new ArrayList<>();
+
     collectTripCandidates(root, cards);
 
     int index = 0;
 
-    for (String cardText : cards) {
-        String normalized = normalizeDigits(cardText)
-                .toLowerCase(Locale.ROOT)
-                .trim();
+    for (TripCandidate candidate : cards) {
+
+        if (candidate == null || candidate.text == null) {
+            continue;
+        }
+
+        String normalized =
+                normalizeDigits(candidate.text)
+                        .toLowerCase(Locale.ROOT)
+                        .trim();
 
         if (normalized.length() < 5) {
             continue;
@@ -341,10 +363,14 @@ private void analyzeTripCards(AccessibilityNodeInfo root) {
             continue;
         }
 
-        addTripIndicator(color, index);
+        addTripIndicator(
+                color,
+                candidate.bounds,
+                index
+        );
+
         index++;
 
-        // حداکثر 6 سفر هم‌زمان
         if (index >= 6) {
             break;
         }
@@ -353,23 +379,26 @@ private void analyzeTripCards(AccessibilityNodeInfo root) {
 
 private void collectTripCandidates(
         AccessibilityNodeInfo node,
-        ArrayList<String> cards) {
+        ArrayList<TripCandidate> cards) {
 
     if (node == null) {
         return;
     }
 
     /*
-     * اول فرزندان را بررسی می‌کنیم.
-     * اگر یکی از فرزندان خودش کارت سفر بود، والد را به عنوان
-     * یک کارت بزرگ‌تر قبول نمی‌کنیم تا چند سفر با هم قاطی نشوند.
+     * ابتدا فرزندان را بررسی می‌کنیم تا پایین‌ترین Node مناسب
+     * به عنوان کارت انتخاب شود و اطلاعات چند کارت با هم ترکیب نشود.
      */
     boolean childHasCard = false;
 
     for (int i = 0; i < node.getChildCount(); i++) {
+
         int before = cards.size();
 
-        collectTripCandidates(node.getChild(i), cards);
+        collectTripCandidates(
+                node.getChild(i),
+                cards
+        );
 
         if (cards.size() > before) {
             childHasCard = true;
@@ -381,6 +410,7 @@ private void collectTripCandidates(
     }
 
     StringBuilder local = new StringBuilder();
+
     collect(node, local);
 
     String text = local.toString();
@@ -389,9 +419,10 @@ private void collectTripCandidates(
         return;
     }
 
-    String normalized = normalizeDigits(text)
-            .toLowerCase(Locale.ROOT)
-            .trim();
+    String normalized =
+            normalizeDigits(text)
+                    .toLowerCase(Locale.ROOT)
+                    .trim();
 
     boolean hasFare =
             normalized.contains("تومان") ||
@@ -404,14 +435,40 @@ private void collectTripCandidates(
                     "(?:km|کیلومتر|کيلومتر|متر|m).*"
             );
 
-    if (hasFare && hasDistance) {
-        cards.add(text);
-
-        Log.d(
-                "SnapFloatDebug",
-                "CARD_CANDIDATE=" + normalized
-        );
+    if (!hasFare || !hasDistance) {
+        return;
     }
+
+    Rect bounds = new Rect();
+
+    try {
+        node.getBoundsInScreen(bounds);
+    } catch (Exception ignored) {
+    }
+
+    /*
+     * کارت‌های بدون موقعیت معتبر را وارد تحلیل نمی‌کنیم.
+     */
+    if (bounds.width() <= 0 || bounds.height() <= 0) {
+        return;
+    }
+
+    cards.add(
+            new TripCandidate(
+                    text,
+                    new Rect(bounds)
+            )
+    );
+
+    Log.d(
+            "SnapFloatDebug",
+            "CARD_CANDIDATE_BOUNDS=" +
+            bounds.left + "," +
+            bounds.top + "," +
+            bounds.right + "," +
+            bounds.bottom +
+            " TEXT=" + normalized
+    );
 }
 
 private int getTripColor(String rawText) {
@@ -543,8 +600,14 @@ private int getTripColor(String rawText) {
     return Color.BLACK;
 }
 
-private void addTripIndicator(int color, int index) {
+
+private void addTripIndicator(
+        int color,
+        Rect cardBounds,
+        int index) {
+
     try {
+
         Button button = new Button(this);
 
         button.setText("");
@@ -570,19 +633,54 @@ private void addTripIndicator(int color, int index) {
                         PixelFormat.TRANSLUCENT
                 );
 
+        /*
+         * نشانگر مستقیماً بر اساس موقعیت همان کارت قرار می‌گیرد.
+         * دیگر از index برای تعیین محل کارت استفاده نمی‌شود.
+         */
         p.gravity = Gravity.TOP | Gravity.START;
 
-        /*
-         * نشانگرهای سفر به صورت عمودی کنار هم قرار می‌گیرند.
-         * دکمه اصلی همچنان جداگانه باقی می‌ماند.
-         */
-        p.x = 25;
-        p.y = 410 + (index * 70);
+        if (cardBounds != null &&
+                cardBounds.width() > 0 &&
+                cardBounds.height() > 0) {
 
-        windowManager.addView(button, p);
+            p.x = Math.max(
+                    5,
+                    cardBounds.left - 65
+            );
+
+            p.y = Math.max(
+                    5,
+                    cardBounds.top +
+                    (cardBounds.height() / 2) -
+                    27
+            );
+
+        } else {
+
+            /*
+             * فقط در صورت نبودن Bounds معتبر،
+             * موقعیت قدیمی به عنوان fallback استفاده می‌شود.
+             */
+            p.x = 25;
+            p.y = 410 + (index * 70);
+        }
+
+        windowManager.addView(
+                button,
+                p
+        );
 
         tripButtons.add(button);
         tripParams.add(p);
+
+        Log.d(
+                "SnapFloatDebug",
+                "INDICATOR color=" +
+                (color == Color.BLUE ? "BLUE" : "BLACK") +
+                " index=" + index +
+                " x=" + p.x +
+                " y=" + p.y
+        );
 
     } catch (Exception ignored) {
     }
