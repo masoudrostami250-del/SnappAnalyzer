@@ -359,18 +359,39 @@ private void collectTripCandidates(
         return;
     }
 
-    StringBuilder local = new StringBuilder();
+    /*
+     * اول فرزندان را بررسی می‌کنیم.
+     * اگر یکی از فرزندان خودش کارت سفر بود، والد را به عنوان
+     * یک کارت بزرگ‌تر قبول نمی‌کنیم تا چند سفر با هم قاطی نشوند.
+     */
+    boolean childHasCard = false;
 
+    for (int i = 0; i < node.getChildCount(); i++) {
+        int before = cards.size();
+
+        collectTripCandidates(node.getChild(i), cards);
+
+        if (cards.size() > before) {
+            childHasCard = true;
+        }
+    }
+
+    if (childHasCard) {
+        return;
+    }
+
+    StringBuilder local = new StringBuilder();
     collect(node, local);
 
     String text = local.toString();
 
-    /*
-     * فقط زیرشاخه‌هایی که هم کرایه و هم فاصله دارند
-     * به عنوان کاندیدای کارت سفر بررسی می‌شوند.
-     */
+    if (text.length() < 5 || text.length() > 1200) {
+        return;
+    }
+
     String normalized = normalizeDigits(text)
-            .toLowerCase(Locale.ROOT);
+            .toLowerCase(Locale.ROOT)
+            .trim();
 
     boolean hasFare =
             normalized.contains("تومان") ||
@@ -378,22 +399,23 @@ private void collectTripCandidates(
             normalized.contains("ریال");
 
     boolean hasDistance =
-            normalized.matches("(?s).*\\d+(?:[\\.,]\\d+)?\\s*(?:km|کیلومتر|کيلومتر|متر|m).*");
+            normalized.matches(
+                    "(?s).*\\d+(?:[\\.,]\\d+)?\\s*" +
+                    "(?:km|کیلومتر|کيلومتر|متر|m).*"
+            );
 
-    if (hasFare && hasDistance && text.length() <= 1200) {
+    if (hasFare && hasDistance) {
         cards.add(text);
-        return;
-    }
 
-    /*
-     * اگر این Node خودش کارت نبود، فرزندان را جداگانه بررسی می‌کنیم.
-     */
-    for (int i = 0; i < node.getChildCount(); i++) {
-        collectTripCandidates(node.getChild(i), cards);
+        Log.d(
+                "SnapFloatDebug",
+                "CARD_CANDIDATE=" + normalized
+        );
     }
 }
 
 private int getTripColor(String rawText) {
+
     if (rawText == null || rawText.trim().isEmpty()) {
         return Color.TRANSPARENT;
     }
@@ -404,6 +426,10 @@ private int getTripColor(String rawText) {
     Long fare = findFare(text);
 
     if (fare == null || fare <= 0) {
+        Log.d(
+                "SnapFloatDebug",
+                "COLOR_SKIP_NO_FARE TEXT=" + text
+        );
         return Color.TRANSPARENT;
     }
 
@@ -415,7 +441,9 @@ private int getTripColor(String rawText) {
     ).matcher(text);
 
     while (distanceMatcher.find()) {
+
         try {
+
             double value = Double.parseDouble(
                     distanceMatcher.group(1)
                             .replace(',', '.')
@@ -430,24 +458,33 @@ private int getTripColor(String rawText) {
             if (value > 0 && value <= 100) {
                 distances.add(value);
             }
+
         } catch (Exception ignored) {
         }
     }
 
     if (distances.isEmpty()) {
+
+        Log.d(
+                "SnapFloatDebug",
+                "COLOR_SKIP_NO_DISTANCE FARE=" + fare +
+                " TEXT=" + text
+        );
+
         return Color.TRANSPARENT;
     }
 
     /*
-     * Accessibility ممکن است یک فاصله را چند بار تکرار کند.
-     * ترتیب اولین وقوع فاصله‌ها را حفظ می‌کنیم.
+     * فاصله‌های تکراری را حذف می‌کنیم.
      */
     ArrayList<Double> uniqueDistances = new ArrayList<>();
 
     for (Double d : distances) {
+
         boolean exists = false;
 
         for (Double u : uniqueDistances) {
+
             if (Math.abs(u - d) < 0.0005) {
                 exists = true;
                 break;
@@ -466,13 +503,11 @@ private int getTripColor(String rawText) {
     /*
      * در کارت اسنپ:
      *
-     * فاصله اول = فاصله راننده تا مبدأ
-     * فاصله دوم = مسافت واقعی سفر
+     * فاصله اول = فاصله تا مبدأ
+     * فاصله دوم = مسافت سفر
      *
-     * بنابراین اگر دو فاصله متفاوت داریم، فاصله دوم را
-     * به عنوان مسافت واقعی سفر استفاده می‌کنیم.
-     *
-     * اگر فقط یک فاصله داریم، همان را استفاده می‌کنیم.
+     * اگر دو فاصله داریم، فاصله دوم را استفاده می‌کنیم.
+     * اگر فقط یک فاصله داریم، همان فاصله استفاده می‌شود.
      */
     double tripKm;
 
@@ -488,21 +523,20 @@ private int getTripColor(String rawText) {
 
     double farePerKm = (double) fare / tripKm;
 
+    boolean blue = farePerKm >= 12000.0;
+
     Log.d(
             "SnapFloatDebug",
-            "FARE=" + fare +
+            "FINAL_CARD" +
+            " FARE=" + fare +
             " DISTANCES=" + uniqueDistances +
             " TRIP_KM=" + tripKm +
             " FARE_PER_KM=" + farePerKm +
-            " COLOR=" +
-            (farePerKm >= 12000.0 ? "BLUE" : "BLACK")
+            " COLOR=" + (blue ? "BLUE" : "BLACK") +
+            " TEXT=" + text
     );
 
-    /*
-     * 12000 تومان یا بیشتر = آبی
-     * کمتر از 12000 تومان = مشکی
-     */
-    if (farePerKm >= 12000.0) {
+    if (blue) {
         return Color.BLUE;
     }
 
