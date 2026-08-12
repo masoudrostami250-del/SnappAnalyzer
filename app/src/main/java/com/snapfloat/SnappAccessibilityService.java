@@ -458,7 +458,7 @@ private int getTripColor(String rawText) {
 
     double farePerKm = (double) fare / tripKm;
 
-    if (farePerKm >= 15000.0) {
+    if (farePerKm >= 12000.0) {
         return Color.BLUE;
     }
 
