@@ -403,6 +403,12 @@ private int getTripColor(String rawText) {
 
     Long fare = findFare(text);
 
+    Log.d("SnapFloatDebug",
+            "CARD_TEXT=" + text);
+
+    Log.d("SnapFloatDebug",
+            "CARD_FARE=" + fare);
+
     if (fare == null || fare <= 0) {
         return Color.TRANSPARENT;
     }
@@ -493,6 +499,11 @@ private int getTripColor(String rawText) {
     }
 
     double farePerKm = (double) fare / tripKm;
+
+    Log.d("SnapFloatDebug",
+            "TRIP_KM=" + tripKm +
+            " FARE_PER_KM=" + farePerKm +
+            " COLOR=" + (farePerKm >= 12000.0 ? "BLUE" : "BLACK"));
 
     /*
      * 12000 تومان یا بیشتر = آبی
