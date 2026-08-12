@@ -407,6 +407,10 @@ private int getTripColor(String rawText) {
         return Color.TRANSPARENT;
     }
 
+    /*
+     * فاصله‌های داخل همین کارت سفر را استخراج می‌کنیم.
+     * متر به کیلومتر تبدیل می‌شود.
+     */
     ArrayList<Double> distances = new ArrayList<>();
 
     Matcher distanceMatcher = Pattern.compile(
@@ -417,7 +421,8 @@ private int getTripColor(String rawText) {
     while (distanceMatcher.find()) {
         try {
             double value = Double.parseDouble(
-                    distanceMatcher.group(1).replace(',', '.')
+                    distanceMatcher.group(1)
+                            .replace(',', '.')
             );
 
             String unit = distanceMatcher.group(2);
@@ -429,6 +434,7 @@ private int getTripColor(String rawText) {
             if (value > 0 && value <= 100) {
                 distances.add(value);
             }
+
         } catch (Exception ignored) {
         }
     }
@@ -438,18 +444,48 @@ private int getTripColor(String rawText) {
     }
 
     /*
-     * در هر کارت:
-     * فاصله اول = مبدأ
-     * فاصله دوم = مقصد/مسافت سفر
-     *
-     * اگر فقط یک مقدار باشد همان مقدار استفاده می‌شود.
+     * فاصله‌های تکراری Accessibility را حذف می‌کنیم.
      */
-    double tripKm;
+    ArrayList<Double> uniqueDistances = new ArrayList<>();
 
-    if (distances.size() >= 2) {
-        tripKm = distances.get(1);
-    } else {
-        tripKm = distances.get(0);
+    for (Double d : distances) {
+        boolean exists = false;
+
+        for (Double u : uniqueDistances) {
+            if (Math.abs(u - d) < 0.0005) {
+                exists = true;
+                break;
+            }
+        }
+
+        if (!exists) {
+            uniqueDistances.add(d);
+        }
+    }
+
+    if (uniqueDistances.isEmpty()) {
+        return Color.TRANSPARENT;
+    }
+
+    /*
+     * در کارت سفر معمولاً فاصله تا مبدأ بزرگ‌تر از
+     * مسافت واقعی سفر است.
+     *
+     * بنابراین وقتی بیش از یک فاصله داریم، کوچک‌ترین
+     * فاصله را به‌عنوان مسافت واقعی سفر انتخاب می‌کنیم.
+     *
+     * مثال:
+     * 1 km       = فاصله تا مبدأ
+     * 713 متر    = 0.713 km مسافت واقعی سفر
+     *
+     * 0.713 انتخاب می‌شود.
+     */
+    double tripKm = uniqueDistances.get(0);
+
+    for (Double d : uniqueDistances) {
+        if (d > 0 && d < tripKm) {
+            tripKm = d;
+        }
     }
 
     if (tripKm <= 0) {
@@ -458,6 +494,10 @@ private int getTripColor(String rawText) {
 
     double farePerKm = (double) fare / tripKm;
 
+    /*
+     * 12000 تومان یا بیشتر = آبی
+     * کمتر از 12000 تومان = مشکی
+     */
     if (farePerKm >= 12000.0) {
         return Color.BLUE;
     }
