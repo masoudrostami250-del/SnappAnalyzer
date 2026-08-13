@@ -72,159 +72,94 @@ protected void onServiceConnected() {
 }
 
     private void createFloatingButton() {
-    if (windowManager == null || floatingButton != null) {
-        return;
-    }
+        if (windowManager == null || floatingButton != null) return;
+        try {
+            floatingButton = new Button(this);
+            floatingButton.setText("");
+            floatingButton.setPadding(0,0,0,0);
+            setButtonBackground(floatingButton, Color.WHITE);
 
-    try {
-        // دکمه بالایی: سفید، وقتی سفری وجود ندارد
-        floatingButton = new Button(this);
-        floatingButton.setText("");
-        floatingButton.setPadding(0, 0, 0, 0);
-        setButtonBackground(floatingButton, Color.WHITE);
+            params = new WindowManager.LayoutParams(
+                    90, 90,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                    PixelFormat.TRANSLUCENT);
+            params.gravity = Gravity.TOP | Gravity.START;
+            params.x = 25;
+            params.y = 300;
 
-        params = new WindowManager.LayoutParams(
-                90,
-                90,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                PixelFormat.TRANSLUCENT
-        );
-
-        params.gravity = Gravity.TOP | Gravity.START;
-        params.x = 25;
-        params.y = 300;
-
-        floatingButton.setOnTouchListener(new View.OnTouchListener() {
-            int startX, startY;
-            float touchX, touchY;
-
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getActionMasked()) {
-                    case MotionEvent.ACTION_DOWN:
-                        startX = params.x;
-                        startY = params.y;
-                        touchX = event.getRawX();
-                        touchY = event.getRawY();
+            floatingButton.setOnTouchListener(new View.OnTouchListener() {
+                int startX, startY;
+                float touchX, touchY;
+                @Override public boolean onTouch(View v, MotionEvent event) {
+                    if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                        startX = params.x; startY = params.y;
+                        touchX = event.getRawX(); touchY = event.getRawY();
                         return true;
-
-                    case MotionEvent.ACTION_MOVE:
-                        params.x = startX +
-                                (int)(event.getRawX() - touchX);
-                        params.y = startY +
-                                (int)(event.getRawY() - touchY);
-
+                    }
+                    if (event.getActionMasked() == MotionEvent.ACTION_MOVE) {
+                        params.x = startX + (int)(event.getRawX() - touchX);
+                        params.y = startY + (int)(event.getRawY() - touchY);
                         try {
-                            windowManager.updateViewLayout(
-                                    floatingButton, params
-                            );
-
+                            windowManager.updateViewLayout(floatingButton, params);
                             if (goodButton != null) {
-                                WindowManager.LayoutParams gp =
-                                        (WindowManager.LayoutParams)
-                                                goodButton.getLayoutParams();
-                                gp.x = params.x;
-                                gp.y = params.y + 100;
-                                windowManager.updateViewLayout(
-                                        goodButton, gp
-                                );
+                                WindowManager.LayoutParams p = (WindowManager.LayoutParams) goodButton.getLayoutParams();
+                                p.x = params.x; p.y = params.y + 100;
+                                windowManager.updateViewLayout(goodButton, p);
                             }
-
                             if (badButton != null) {
-                                WindowManager.LayoutParams bp =
-                                        (WindowManager.LayoutParams)
-                                                badButton.getLayoutParams();
-                                bp.x = params.x;
-                                bp.y = params.y + 200;
-                                windowManager.updateViewLayout(
-                                        badButton, bp
-                                );
+                                WindowManager.LayoutParams p = (WindowManager.LayoutParams) badButton.getLayoutParams();
+                                p.x = params.x; p.y = params.y + 200;
+                                windowManager.updateViewLayout(badButton, p);
                             }
                         } catch (Exception e) {
-                            Log.e(
-                                    "SnapFloatDebug",
-                                    "BUTTON_MOVE_ERROR",
-                                    e
-                            );
+                            Log.e("SnapFloatDebug","BUTTON_MOVE_ERROR",e);
                         }
                         return true;
+                    }
+                    return true;
                 }
-                return true;
-            }
-        });
+            });
 
-        windowManager.addView(floatingButton, params);
+            windowManager.addView(floatingButton, params);
+            Log.d("SnapFloatDebug","MAIN_WHITE_BUTTON_CREATED");
 
-        // دکمه دوم: ابتدا سبز
-        goodButton = new Button(this);
-        goodButton.setText("");
-        goodButton.setPadding(0, 0, 0, 0);
-        setButtonBackground(goodButton, Color.GREEN);
+            goodButton = new Button(this);
+            goodButton.setText("");
+            goodButton.setPadding(0,0,0,0);
+            setButtonBackground(goodButton, Color.GREEN);
+            WindowManager.LayoutParams gp = new WindowManager.LayoutParams(
+                    70,70,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                    PixelFormat.TRANSLUCENT);
+            gp.gravity = Gravity.TOP | Gravity.START;
+            gp.x = params.x; gp.y = params.y + 100;
+            windowManager.addView(goodButton,gp);
+            Log.d("SnapFloatDebug","GOOD_BUTTON_CREATED");
 
-        WindowManager.LayoutParams goodParams =
-                new WindowManager.LayoutParams(
-                        70,
-                        70,
-                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                        PixelFormat.TRANSLUCENT
-                );
-
-        goodParams.gravity = Gravity.TOP | Gravity.START;
-        goodParams.x = params.x;
-        goodParams.y = params.y + 100;
-
-        windowManager.addView(goodButton, goodParams);
-
-        // دکمه سوم: ابتدا قرمز
-        badButton = new Button(this);
-        badButton.setText("");
-        badButton.setPadding(0, 0, 0, 0);
-        setButtonBackground(badButton, Color.RED);
-
-        WindowManager.LayoutParams badParams =
-                new WindowManager.LayoutParams(
-                        70,
-                        70,
-                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                        PixelFormat.TRANSLUCENT
-                );
-
-        badParams.gravity = Gravity.TOP | Gravity.START;
-        badParams.x = params.x;
-        badParams.y = params.y + 200;
-
-        windowManager.addView(badButton, badParams);
-
-        Log.d(
-                "SnapFloatDebug",
-                "THREE_BUTTONS_CREATED"
-        );
-
-    } catch (Exception e) {
-        Log.e(
-                "SnapFloatDebug",
-                "THREE_BUTTONS_CREATE_ERROR",
-                e
-        );
-
-        if (floatingButton != null) {
-            try {
-                windowManager.removeView(floatingButton);
-            } catch (Exception ignored) {}
+            badButton = new Button(this);
+            badButton.setText("");
+            badButton.setPadding(0,0,0,0);
+            setButtonBackground(badButton, Color.RED);
+            WindowManager.LayoutParams bp = new WindowManager.LayoutParams(
+                    70,70,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                    PixelFormat.TRANSLUCENT);
+            bp.gravity = Gravity.TOP | Gravity.START;
+            bp.x = params.x; bp.y = params.y + 200;
+            windowManager.addView(badButton,bp);
+            Log.d("SnapFloatDebug","BAD_BUTTON_CREATED");
+            Log.d("SnapFloatDebug","THREE_BUTTONS_CREATED");
+        } catch (Exception e) {
+            Log.e("SnapFloatDebug","THREE_BUTTONS_CREATE_ERROR",e);
+            floatingButton = null;
+            goodButton = null;
+            badButton = null;
         }
-
-        floatingButton = null;
-        goodButton = null;
-        badButton = null;
     }
-}
-
 private void setButtonBackground(Button button, int color) {
     if (button == null) {
         return;
