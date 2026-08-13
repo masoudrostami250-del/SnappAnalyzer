@@ -131,7 +131,7 @@ private boolean analyzerEnabled = true;
                                             floatingButton,
                                             params
                                     );
-                                } catch (Exception ignored) {
+                                } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
                                 }
 
                                 return true;
@@ -147,7 +147,7 @@ private boolean analyzerEnabled = true;
                     floatingButton,
                     params
             );
-        } catch (Exception ignored) {
+        } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
             floatingButton = null;
         }
     }
@@ -203,7 +203,7 @@ private boolean analyzerEnabled = true;
             Log.d("SnapFloatTree", "===== SNAPFLOAT EVENT =====");
             dumpNode(root, 0);
             Log.d("SnapFloatTree", "===== END SNAPFLOAT EVENT =====");
-        } catch (Exception ignored) {
+        } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
         }
 
         if (text.isEmpty() ||
@@ -309,7 +309,7 @@ private void clearTripButtons() {
             if (windowManager != null) {
                 windowManager.removeView(button);
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
         }
     }
 
@@ -443,7 +443,7 @@ private void collectTripCandidates(
 
     try {
         node.getBoundsInScreen(bounds);
-    } catch (Exception ignored) {
+    } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
     }
 
     /*
@@ -516,7 +516,7 @@ private int getTripColor(String rawText) {
                 distances.add(value);
             }
 
-        } catch (Exception ignored) {
+        } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
         }
     }
 
@@ -709,7 +709,7 @@ private void analyzeTrip(String rawText) {
         if (root != null) {
             analyzeTripCards(root);
         }
-    } catch (Exception ignored) {
+    } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
     }
 }
 
@@ -749,7 +749,7 @@ private Long findFare(
                         fares.add(value);
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
             }
         }
 
@@ -774,7 +774,7 @@ private Long findFare(
                         fares.add(value);
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
             }
         }
 
@@ -830,7 +830,7 @@ private Long findFare(
                 windowManager.removeView(
                         floatingButton
                 );
-            } catch (Exception ignored) {
+            } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
             }
 
             floatingButton = null;
