@@ -729,8 +729,8 @@ private Long findFare(
         ArrayList<Long> fares = new ArrayList<>();
 
         Pattern beforeCurrency = Pattern.compile(
-                "(?:تومان|تومن|ریال)\s*" +
-                "([0-9][0-9,\.\s]*)"
+                "(?:تومان|تومن|ریال)\\s*" +
+                "([0-9][0-9,\\.\\s]*)"
         );
 
         Matcher m1 = beforeCurrency.matcher(text);
@@ -754,7 +754,7 @@ private Long findFare(
         }
 
         Pattern afterCurrency = Pattern.compile(
-                "([0-9][0-9,\.\s]*)\s*" +
+                "([0-9][0-9,\\.\\s]*)\\s*" +
                 "(?:تومان|تومن|ریال)"
         );
 
