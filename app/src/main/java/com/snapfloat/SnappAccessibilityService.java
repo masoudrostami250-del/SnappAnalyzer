@@ -27,12 +27,14 @@ public class SnappAccessibilityService extends AccessibilityService {
 
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
 
+    private static SnappAccessibilityService instance;
     private WindowManager windowManager;
     private Button floatingButton;
     private WindowManager.LayoutParams params;
     private final ArrayList<Button> tripButtons = new ArrayList<>();
     private final ArrayList<WindowManager.LayoutParams> tripParams = new ArrayList<>();
-private boolean analyzerEnabled = true;
+private static boolean enabled = true;
+    private boolean analyzerEnabled = true;
 
     private final Handler handler =
             new Handler(Looper.getMainLooper());
@@ -49,110 +51,107 @@ private boolean analyzerEnabled = true;
     };
 
     @Override
-    protected void onServiceConnected() {
-        super.onServiceConnected();
+protected void onServiceConnected() {
+    super.onServiceConnected();
 
-        windowManager =
-                (WindowManager) getSystemService(WINDOW_SERVICE);
+    instance = this;
 
+    enabled = getSharedPreferences(
+            "settings",
+            MODE_PRIVATE
+    ).getBoolean("enabled", true);
+
+    windowManager =
+            (WindowManager) getSystemService(WINDOW_SERVICE);
+
+    if (enabled) {
         createFloatingButton();
     }
+}
 
     private void createFloatingButton() {
-
-        if (floatingButton != null) {
-            return;
-        }
-
-        floatingButton = new Button(this);
-        floatingButton.setText("");
-
-        setButtonColor(Color.WHITE);
-
-        params = new WindowManager.LayoutParams(
-                90,
-                90,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-                PixelFormat.TRANSLUCENT
-        );
-
-        params.gravity = Gravity.TOP | Gravity.START;
-        params.x = 25;
-        params.y = 300;
-
-        floatingButton.setOnTouchListener(
-                new View.OnTouchListener() {
-
-                    int startX;
-                    int startY;
-                    float touchX;
-                    float touchY;
-
-                    @Override
-                    public boolean onTouch(
-                            View v,
-                            MotionEvent event) {
-
-                        switch (event.getAction()) {
-
-                            case MotionEvent.ACTION_DOWN:
-
-                                startX = params.x;
-                                startY = params.y;
-
-                                touchX =
-                                        event.getRawX();
-
-                                touchY =
-                                        event.getRawY();
-
-                                return true;
-
-                            case MotionEvent.ACTION_MOVE:
-
-                                params.x =
-                                        startX +
-                                        (int) (
-                                                event.getRawX()
-                                                        - touchX
-                                        );
-
-                                params.y =
-                                        startY +
-                                        (int) (
-                                                event.getRawY()
-                                                        - touchY
-                                        );
-
-                                try {
-                                    windowManager.updateViewLayout(
-                                            floatingButton,
-                                            params
-                                    );
-                                } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
-                                }
-
-                                return true;
-                        }
-
-                        return true;
-                    }
-                }
-        );
-
-        try {
-            windowManager.addView(
-                    floatingButton,
-                    params
-            );
-        } catch (Exception e) { Log.e("SnapFloatDebug", "FLOATING_BUTTON_ERROR", e);
-            floatingButton = null;
-        }
+    if (floatingButton != null || windowManager == null) {
+        return;
     }
 
-    private void setButtonColor(int color) {
+    floatingButton = new Button(this);
+    floatingButton.setText("");
+    floatingButton.setPadding(0, 0, 0, 0);
+
+    // دکمه شناور همیشه در شروع قابل مشاهده باشد
+    setButtonColor(Color.BLUE);
+
+    params = new WindowManager.LayoutParams(
+            90,
+            90,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            PixelFormat.TRANSLUCENT
+    );
+
+    params.gravity = Gravity.TOP | Gravity.START;
+    params.x = 25;
+    params.y = 300;
+
+    floatingButton.setOnTouchListener(new View.OnTouchListener() {
+        int startX;
+        int startY;
+        float touchX;
+        float touchY;
+
+        @Override
+        public boolean onTouch(View v, MotionEvent event) {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    startX = params.x;
+                    startY = params.y;
+                    touchX = event.getRawX();
+                    touchY = event.getRawY();
+                    return true;
+
+                case MotionEvent.ACTION_MOVE:
+                    params.x = startX + (int)(event.getRawX() - touchX);
+                    params.y = startY + (int)(event.getRawY() - touchY);
+
+                    try {
+                        windowManager.updateViewLayout(
+                                floatingButton,
+                                params
+                        );
+                    } catch (Exception e) {
+                        Log.e(
+                                "SnapFloatDebug",
+                                "FLOATING_BUTTON_UPDATE_ERROR",
+                                e
+                        );
+                    }
+                    return true;
+            }
+
+            return true;
+        }
+    });
+
+    try {
+        windowManager.addView(floatingButton, params);
+
+        Log.d(
+                "SnapFloatDebug",
+                "FLOATING_BUTTON_CREATED"
+        );
+
+    } catch (Exception e) {
+        Log.e(
+                "SnapFloatDebug",
+                "FLOATING_BUTTON_CREATE_ERROR",
+                e
+        );
+        floatingButton = null;
+    }
+}
+
+private void setButtonColor(int color) {
 
         if (floatingButton == null) {
             return;
