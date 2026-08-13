@@ -682,7 +682,14 @@ private void addTripIndicator(
                 " y=" + p.y
         );
 
-    } catch (Exception ignored) {
+    } catch (Exception e) {
+        Log.e(
+                "SnapFloatDebug",
+                "INDICATOR_ADD_FAILED index=" + index +
+                " color=" + (color == Color.BLUE ? "BLUE" : "BLACK") +
+                " bounds=" + cardBounds,
+                e
+        );
     }
 }
 
