@@ -709,57 +709,87 @@ private void analyzeTrip(String rawText) {
 private Long findFare(
             String text) {
 
-        Pattern before =
-                Pattern.compile(
-                        "(?:تومان|تومن|ریال)\\s*" +
-                        "([0-9][0-9,\\.\\s]*)"
-                );
+        if (text == null || text.trim().isEmpty()) {
+            return null;
+        }
 
-        Matcher m1 =
-                before.matcher(text);
+        /*
+         * Accessibility ممکن است ترتیب متن را به شکل‌های مختلف برگرداند.
+         * بنابراین اولین عدد بعد/قبل از «تومان» را کرایه فرض نمی‌کنیم.
+         * همه مبالغ را پیدا می‌کنیم و بزرگ‌ترین مبلغ معتبر را انتخاب می‌کنیم.
+         */
 
-        if (m1.find()) {
+        ArrayList<Long> fares = new ArrayList<>();
 
+        Pattern beforeCurrency = Pattern.compile(
+                "(?:تومان|تومن|ریال)\s*" +
+                "([0-9][0-9,\.\s]*)"
+        );
+
+        Matcher m1 = beforeCurrency.matcher(text);
+
+        while (m1.find()) {
             try {
+                String number = m1.group(1)
+                        .replace(",", "")
+                        .replace(".", "")
+                        .replace(" ", "");
 
-                String number =
-                        m1.group(1)
-                                .replace(",", "")
-                                .replace(".", "")
-                                .replace(" ", "");
+                if (!number.isEmpty()) {
+                    long value = Long.parseLong(number);
 
-                return Long.parseLong(number);
-
+                    if (value > 0 && value <= 1000000000L) {
+                        fares.add(value);
+                    }
+                }
             } catch (Exception ignored) {
             }
         }
 
-        Pattern after =
-                Pattern.compile(
-                        "([0-9][0-9,\\.\\s]*)\\s*" +
-                        "(?:تومان|تومن|ریال)"
-                );
+        Pattern afterCurrency = Pattern.compile(
+                "([0-9][0-9,\.\s]*)\s*" +
+                "(?:تومان|تومن|ریال)"
+        );
 
-        Matcher m2 =
-                after.matcher(text);
+        Matcher m2 = afterCurrency.matcher(text);
 
-        if (m2.find()) {
-
+        while (m2.find()) {
             try {
+                String number = m2.group(1)
+                        .replace(",", "")
+                        .replace(".", "")
+                        .replace(" ", "");
 
-                String number =
-                        m2.group(1)
-                                .replace(",", "")
-                                .replace(".", "")
-                                .replace(" ", "");
+                if (!number.isEmpty()) {
+                    long value = Long.parseLong(number);
 
-                return Long.parseLong(number);
-
+                    if (value > 0 && value <= 1000000000L) {
+                        fares.add(value);
+                    }
+                }
             } catch (Exception ignored) {
             }
         }
 
-        return null;
+        if (fares.isEmpty()) {
+            return null;
+        }
+
+        long maxFare = 0;
+
+        for (Long fare : fares) {
+            if (fare != null && fare > maxFare) {
+                maxFare = fare;
+            }
+        }
+
+        Log.d(
+                "SnapFloatDebug",
+                "FARE_CANDIDATES=" + fares +
+                " SELECTED_FARE=" + maxFare
+        );
+
+        return maxFare > 0 ? maxFare : null;
     }
 
     private String normalizeDigits(
