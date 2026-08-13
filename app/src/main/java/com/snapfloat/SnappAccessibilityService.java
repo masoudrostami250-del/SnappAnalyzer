@@ -30,6 +30,8 @@ public class SnappAccessibilityService extends AccessibilityService {
     private static SnappAccessibilityService instance;
     private WindowManager windowManager;
     private Button floatingButton;
+    private Button goodButton;
+    private Button badButton;
     private WindowManager.LayoutParams params;
     private final ArrayList<Button> tripButtons = new ArrayList<>();
     private final ArrayList<WindowManager.LayoutParams> tripParams = new ArrayList<>();
@@ -70,106 +72,192 @@ protected void onServiceConnected() {
 }
 
     private void createFloatingButton() {
-    if (floatingButton != null || windowManager == null) {
+    if (windowManager == null || floatingButton != null) {
         return;
     }
 
-    floatingButton = new Button(this);
-    floatingButton.setText("");
-    floatingButton.setPadding(0, 0, 0, 0);
-
-    // دکمه شناور همیشه در شروع قابل مشاهده باشد
-    setButtonColor(Color.BLUE);
-
-    params = new WindowManager.LayoutParams(
-            90,
-            90,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                    | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
-            PixelFormat.TRANSLUCENT
-    );
-
-    params.gravity = Gravity.TOP | Gravity.START;
-    params.x = 25;
-    params.y = 300;
-
-    floatingButton.setOnTouchListener(new View.OnTouchListener() {
-        int startX;
-        int startY;
-        float touchX;
-        float touchY;
-
-        @Override
-        public boolean onTouch(View v, MotionEvent event) {
-            switch (event.getActionMasked()) {
-                case MotionEvent.ACTION_DOWN:
-                    startX = params.x;
-                    startY = params.y;
-                    touchX = event.getRawX();
-                    touchY = event.getRawY();
-                    return true;
-
-                case MotionEvent.ACTION_MOVE:
-                    params.x = startX + (int)(event.getRawX() - touchX);
-                    params.y = startY + (int)(event.getRawY() - touchY);
-
-                    try {
-                        windowManager.updateViewLayout(
-                                floatingButton,
-                                params
-                        );
-                    } catch (Exception e) {
-                        Log.e(
-                                "SnapFloatDebug",
-                                "FLOATING_BUTTON_UPDATE_ERROR",
-                                e
-                        );
-                    }
-                    return true;
-            }
-
-            return true;
-        }
-    });
-
     try {
+        // دکمه بالایی: سفید، وقتی سفری وجود ندارد
+        floatingButton = new Button(this);
+        floatingButton.setText("");
+        floatingButton.setPadding(0, 0, 0, 0);
+        setButtonBackground(floatingButton, Color.WHITE);
+
+        params = new WindowManager.LayoutParams(
+                90,
+                90,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                PixelFormat.TRANSLUCENT
+        );
+
+        params.gravity = Gravity.TOP | Gravity.START;
+        params.x = 25;
+        params.y = 300;
+
+        floatingButton.setOnTouchListener(new View.OnTouchListener() {
+            int startX, startY;
+            float touchX, touchY;
+
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        startX = params.x;
+                        startY = params.y;
+                        touchX = event.getRawX();
+                        touchY = event.getRawY();
+                        return true;
+
+                    case MotionEvent.ACTION_MOVE:
+                        params.x = startX +
+                                (int)(event.getRawX() - touchX);
+                        params.y = startY +
+                                (int)(event.getRawY() - touchY);
+
+                        try {
+                            windowManager.updateViewLayout(
+                                    floatingButton, params
+                            );
+
+                            if (goodButton != null) {
+                                WindowManager.LayoutParams gp =
+                                        (WindowManager.LayoutParams)
+                                                goodButton.getLayoutParams();
+                                gp.x = params.x;
+                                gp.y = params.y + 100;
+                                windowManager.updateViewLayout(
+                                        goodButton, gp
+                                );
+                            }
+
+                            if (badButton != null) {
+                                WindowManager.LayoutParams bp =
+                                        (WindowManager.LayoutParams)
+                                                badButton.getLayoutParams();
+                                bp.x = params.x;
+                                bp.y = params.y + 200;
+                                windowManager.updateViewLayout(
+                                        badButton, bp
+                                );
+                            }
+                        } catch (Exception e) {
+                            Log.e(
+                                    "SnapFloatDebug",
+                                    "BUTTON_MOVE_ERROR",
+                                    e
+                            );
+                        }
+                        return true;
+                }
+                return true;
+            }
+        });
+
         windowManager.addView(floatingButton, params);
+
+        // دکمه دوم: ابتدا سبز
+        goodButton = new Button(this);
+        goodButton.setText("");
+        goodButton.setPadding(0, 0, 0, 0);
+        setButtonBackground(goodButton, Color.GREEN);
+
+        WindowManager.LayoutParams goodParams =
+                new WindowManager.LayoutParams(
+                        70,
+                        70,
+                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        goodParams.gravity = Gravity.TOP | Gravity.START;
+        goodParams.x = params.x;
+        goodParams.y = params.y + 100;
+
+        windowManager.addView(goodButton, goodParams);
+
+        // دکمه سوم: ابتدا قرمز
+        badButton = new Button(this);
+        badButton.setText("");
+        badButton.setPadding(0, 0, 0, 0);
+        setButtonBackground(badButton, Color.RED);
+
+        WindowManager.LayoutParams badParams =
+                new WindowManager.LayoutParams(
+                        70,
+                        70,
+                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+
+        badParams.gravity = Gravity.TOP | Gravity.START;
+        badParams.x = params.x;
+        badParams.y = params.y + 200;
+
+        windowManager.addView(badButton, badParams);
 
         Log.d(
                 "SnapFloatDebug",
-                "FLOATING_BUTTON_CREATED"
+                "THREE_BUTTONS_CREATED"
         );
 
     } catch (Exception e) {
         Log.e(
                 "SnapFloatDebug",
-                "FLOATING_BUTTON_CREATE_ERROR",
+                "THREE_BUTTONS_CREATE_ERROR",
                 e
         );
+
+        if (floatingButton != null) {
+            try {
+                windowManager.removeView(floatingButton);
+            } catch (Exception ignored) {}
+        }
+
         floatingButton = null;
+        goodButton = null;
+        badButton = null;
     }
 }
 
-private void setButtonColor(int color) {
-
-        if (floatingButton == null) {
-            return;
-        }
-
-        GradientDrawable background =
-                new GradientDrawable();
-
-        background.setShape(
-                GradientDrawable.OVAL
-        );
-
-        background.setColor(color);
-
-        floatingButton.setBackground(background);
+private void setButtonBackground(Button button, int color) {
+    if (button == null) {
+        return;
     }
 
-    @Override
+    GradientDrawable background =
+            new GradientDrawable();
+
+    background.setShape(
+            GradientDrawable.OVAL
+    );
+
+    background.setColor(color);
+    button.setBackground(background);
+}
+
+private void setButtonColor(int color) {
+    if (floatingButton == null) {
+        return;
+    }
+
+    setButtonBackground(floatingButton, color);
+}
+
+private void setGoodButtonColor(int color) {
+    setButtonBackground(goodButton, color);
+}
+
+private void setBadButtonColor(int color) {
+    setButtonBackground(badButton, color);
+}
+
+@Override
     public void onAccessibilityEvent(
             AccessibilityEvent event) {
 
