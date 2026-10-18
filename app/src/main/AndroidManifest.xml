@@ -4,7 +4,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Snapp Analyzer"
+        android:label="Snapp Pickup ETA"
         android:allowBackup="false"
         android:supportsRtl="true">
 
