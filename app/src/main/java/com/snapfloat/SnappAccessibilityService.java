@@ -32,6 +32,7 @@ public class SnappAccessibilityService extends AccessibilityService {
     private Button floatingButton;
     private Button goodButton;
     private Button badButton;
+    private Button pickupButton;
     private WindowManager.LayoutParams params;
     private final ArrayList<Button> tripButtons = new ArrayList<>();
     private final ArrayList<WindowManager.LayoutParams> tripParams = new ArrayList<>();
@@ -47,6 +48,7 @@ private static boolean enabled = true;
         @Override
         public void run() {
             if (!lastText.isEmpty()) {
+                updatePickupIndicator(lastText);
                 analyzeTrip(lastText);
             }
         }
@@ -142,6 +144,16 @@ protected void onServiceConnected() {
                                         badButton, bp
                                 );
                             }
+                            if (pickupButton != null) {
+                                WindowManager.LayoutParams pp =
+                                        (WindowManager.LayoutParams)
+                                                pickupButton.getLayoutParams();
+                                pp.x = params.x;
+                                pp.y = params.y + 300;
+                                windowManager.updateViewLayout(
+                                        pickupButton, pp
+                                );
+                            }
                         } catch (Exception e) {
                             Log.e(
                                     "SnapFloatDebug",
@@ -201,10 +213,27 @@ protected void onServiceConnected() {
 
         windowManager.addView(badButton, badParams);
 
-        Log.d(
-                "SnapFloatDebug",
-                "THREE_BUTTONS_CREATED"
-        );
+        pickupButton = new Button(this);
+        pickupButton.setText("");
+        pickupButton.setPadding(0, 0, 0, 0);
+        pickupButton.setClickable(false);
+        pickupButton.setVisibility(View.GONE);
+        setButtonBackground(pickupButton, Color.BLACK);
+
+        WindowManager.LayoutParams pickupParams =
+                new WindowManager.LayoutParams(
+                        70, 70,
+                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                        PixelFormat.TRANSLUCENT
+                );
+        pickupParams.gravity = Gravity.TOP | Gravity.START;
+        pickupParams.x = params.x;
+        pickupParams.y = params.y + 300;
+        windowManager.addView(pickupButton, pickupParams);
+
+        Log.d("SnapFloatDebug", "FOUR_BUTTONS_CREATED");
 
     } catch (Exception e) {
         Log.e(
@@ -222,6 +251,7 @@ protected void onServiceConnected() {
         floatingButton = null;
         goodButton = null;
         badButton = null;
+        pickupButton = null;
     }
 }
 
@@ -255,6 +285,30 @@ private void setGoodButtonColor(int color) {
 
 private void setBadButtonColor(int color) {
     setButtonBackground(badButton, color);
+}
+
+private void updatePickupIndicator(String rawText) {
+    if (pickupButton == null || rawText == null) return;
+    String text = normalizeDigits(rawText).toLowerCase(Locale.ROOT);
+    boolean offer = (text.contains("تومان") || text.contains("تومن") || text.contains("ریال"))
+            && (text.contains("کیلومتر") || text.contains("کيلومتر") || text.contains("km") || text.contains("متر"));
+    if (!offer) {
+        pickupButton.setVisibility(View.GONE);
+        return;
+    }
+    Matcher matcher = Pattern.compile("([0-9]{1,2})\\s*(?:دقیقه|دقيقه|min)", Pattern.CASE_INSENSITIVE).matcher(text);
+    if (!matcher.find()) {
+        pickupButton.setVisibility(View.GONE);
+        return;
+    }
+    try {
+        int minutes = Integer.parseInt(matcher.group(1));
+        setButtonBackground(pickupButton, minutes <= 4 ? Color.rgb(21, 101, 192) : Color.BLACK);
+        pickupButton.setVisibility(View.VISIBLE);
+        Log.d("SnapFloatDebug", "PICKUP_ETA=" + minutes);
+    } catch (NumberFormatException ignored) {
+        pickupButton.setVisibility(View.GONE);
+    }
 }
 
 @Override
