@@ -23,11 +23,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
+
+      - name: Install Android SDK packages
+        run: yes | sdkmanager --licenses >/dev/null; sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -38,9 +36,7 @@ jobs:
         run: gradle assembleDebug
 
       - name: Check APK
-        run: |
-          echo "APK files:"
-          find app/build/outputs -type f -name "*.apk" -print
+        run: find app/build/outputs -type f -name "*.apk" -print
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
