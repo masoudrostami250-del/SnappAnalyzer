@@ -290,25 +290,39 @@ private void setBadButtonColor(int color) {
 private void updatePickupIndicator(String rawText) {
     if (pickupButton == null || rawText == null) return;
     String text = normalizeDigits(rawText).toLowerCase(Locale.ROOT);
-    boolean offer = (text.contains("تومان") || text.contains("تومن") || text.contains("ریال"))
-            && (text.contains("کیلومتر") || text.contains("کيلومتر") || text.contains("km") || text.contains("متر"));
-    if (!offer) {
+    boolean hasFare = text.contains("تومان") || text.contains("تومن") || text.contains("ریال");
+    if (!hasFare) {
         pickupButton.setVisibility(View.GONE);
         return;
     }
-    Matcher matcher = Pattern.compile("([0-9]{1,2})\\s*(?:دقیقه|دقيقه|min)", Pattern.CASE_INSENSITIVE).matcher(text);
-    if (!matcher.find()) {
+    Long fare = findFare(text);
+    Matcher matcher = Pattern.compile("(\\\\d+(?:[\\\\.,]\\\\d+)?)\\\\s*(km|کیلومتر|کيلومتر|متر|m)").matcher(text);
+    ArrayList<Double> distances = new ArrayList<>();
+    while (matcher.find()) {
+        try {
+            double d = Double.parseDouble(matcher.group(1).replace(',', '.'));
+            String unit = matcher.group(2);
+            if (unit.equals("متر") || unit.equals("m")) d /= 1000.0;
+            if (d > 0 && d <= 100) {
+                boolean duplicate = false;
+                for (Double prior : distances) if (Math.abs(prior - d) < 0.0005) duplicate = true;
+                if (!duplicate) distances.add(d);
+            }
+        } catch (Exception ignored) {}
+    }
+    if (fare == null || distances.isEmpty()) {
         pickupButton.setVisibility(View.GONE);
         return;
     }
-    try {
-        int minutes = Integer.parseInt(matcher.group(1));
-        setButtonBackground(pickupButton, minutes <= 4 ? Color.rgb(21, 101, 192) : Color.BLACK);
-        pickupButton.setVisibility(View.VISIBLE);
-        Log.d("SnapFloatDebug", "PICKUP_ETA=" + minutes);
-    } catch (NumberFormatException ignored) {
+    double tripKm = distances.size() >= 2 ? distances.get(1) : distances.get(0);
+    if (tripKm <= 0) {
         pickupButton.setVisibility(View.GONE);
+        return;
     }
+    double rate = fare / tripKm;
+    setButtonBackground(pickupButton, rate >= 16000.0 ? Color.rgb(3, 169, 244) : Color.BLACK);
+    pickupButton.setVisibility(View.VISIBLE);
+    Log.d("SnapFloatDebug", "FARE_PER_KM_INDICATOR=" + rate);
 }
 
 @Override
@@ -721,7 +735,7 @@ private int getTripColor(String rawText) {
 
     double farePerKm = (double) fare / tripKm;
 
-    boolean blue = farePerKm >= 12000.0;
+    boolean blue = farePerKm >= 16000.0;
 
     Log.d(
             "SnapFloatDebug",
@@ -735,7 +749,7 @@ private int getTripColor(String rawText) {
     );
 
     if (blue) {
-        return Color.BLUE;
+        return Color.rgb(3, 169, 244);
     }
 
     return Color.BLACK;
@@ -817,7 +831,7 @@ private void addTripIndicator(
         Log.d(
                 "SnapFloatDebug",
                 "INDICATOR color=" +
-                (color == Color.BLUE ? "BLUE" : "BLACK") +
+                (color == Color.rgb(3, 169, 244) ? "LIGHT_BLUE" : "BLACK") +
                 " index=" + index +
                 " x=" + p.x +
                 " y=" + p.y
