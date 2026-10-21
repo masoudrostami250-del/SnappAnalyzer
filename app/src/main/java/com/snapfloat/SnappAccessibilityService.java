@@ -296,7 +296,7 @@ private void updatePickupIndicator(String rawText) {
         return;
     }
     Long fare = findFare(text);
-    Matcher matcher = Pattern.compile("(\\\\d+(?:[\\\\.,]\\\\d+)?)\\\\s*(km|کیلومتر|کيلومتر|متر|m)").matcher(text);
+    Matcher matcher = Pattern.compile("(\\d+(?:[\\.,]\\d+)?)\\s*(km|کیلومتر|کيلومتر|متر|m)").matcher(text);
     ArrayList<Double> distances = new ArrayList<>();
     while (matcher.find()) {
         try {
