@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - pickup-eta-separate-v1
+      - fare-per-km-16000-v1
   workflow_dispatch:
 
 jobs:
