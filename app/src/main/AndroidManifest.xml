@@ -4,7 +4,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Snapp Pickup ETA"
+        android:label="Snapp Fare 16000"
         android:allowBackup="false"
         android:supportsRtl="true">
 
