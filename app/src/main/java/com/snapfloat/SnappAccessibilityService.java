@@ -739,7 +739,7 @@ private int getTripColor(String rawText) {
 
     double farePerKm = (double) fare / tripKm;
 
-    boolean blue = farePerKm >= 12000.0;
+    boolean blue = farePerKm >= 20000.0;
 
     Log.d(
             "SnapFloatDebug",
@@ -748,12 +748,12 @@ private int getTripColor(String rawText) {
             " DISTANCES=" + uniqueDistances +
             " TRIP_KM=" + tripKm +
             " FARE_PER_KM=" + farePerKm +
-            " COLOR=" + (blue ? "BLUE" : "BLACK") +
+            " COLOR=" + (blue ? "LIGHT_BLUE" : "BLACK") +
             " TEXT=" + text
     );
 
     if (blue) {
-        return Color.BLUE;
+        return Color.rgb(3, 169, 244); // light blue
     }
 
     return Color.BLACK;
@@ -835,7 +835,7 @@ private void addTripIndicator(
         Log.d(
                 "SnapFloatDebug",
                 "INDICATOR color=" +
-                (color == Color.BLUE ? "BLUE" : "BLACK") +
+                (color == Color.rgb(3, 169, 244) ? "LIGHT_BLUE" : "BLACK") +
                 " index=" + index +
                 " x=" + p.x +
                 " y=" + p.y
