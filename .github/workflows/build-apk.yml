@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fare-20k-separate
   workflow_dispatch:
 
 jobs:
