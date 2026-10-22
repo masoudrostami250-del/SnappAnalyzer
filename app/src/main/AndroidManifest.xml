@@ -4,7 +4,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Snapp Analyzer"
+        android:label="Snapp Analyzer 20K"
         android:allowBackup="false"
         android:supportsRtl="true">
 
