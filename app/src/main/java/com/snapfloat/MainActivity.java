@@ -20,15 +20,15 @@ public class MainActivity extends Activity {
         root.setPadding(30, 30, 30, 30);
 
         TextView title = new TextView(this);
-        title.setText("Snapp Analyzer 2.2");
+        title.setText("Snapp Analyzer 17K");
         title.setTextSize(24);
         root.addView(title);
 
         TextView rules = new TextView(this);
         rules.setText(
             "\nقانون تحلیل:\n" +
-            "• ۲۰٬۰۰۰ تومان یا بیشتر در هر کیلومتر = آبی روشن\n" +
-            "• کمتر از ۲۰٬۰۰۰ تومان در هر کیلومتر = مشکی\n\n" +
+            "• ۱۷٬۰۰۰ تومان یا بیشتر در هر کیلومتر = آبی روشن\n" +
+            "• کمتر از ۱۷٬۰۰۰ تومان در هر کیلومتر = مشکی\n\n" +
             "مسافت کمتر از ۱ کیلومتر برای محاسبه، ۱ کیلومتر محسوب می‌شود.\n" +
             "مثال: ۷۰۰ متر = ۱ کیلومتر محاسباتی.\n\n" +
             "هر سفر کاملاً مستقل تحلیل می‌شود و مبلغ یک سفر با فاصله سفر دیگری ترکیب نمی‌شود."
