@@ -739,7 +739,7 @@ private int getTripColor(String rawText) {
 
     double farePerKm = (double) fare / tripKm;
 
-    boolean blue = farePerKm >= 20000.0;
+    boolean blue = farePerKm >= 17000.0;
 
     Log.d(
             "SnapFloatDebug",
