@@ -3,7 +3,7 @@ package com.snapfloat;
 public final class TripRuleEngine {
     private TripRuleEngine() {}
 
-    public static final double MIN_TOMAN_PER_KM = 12000.0;
+    public static final double MIN_TOMAN_PER_KM = 17000.0;
 
     public static Result analyze(long fareToman, long distanceMeters) {
         if (fareToman < 0 || distanceMeters <= 0) {
