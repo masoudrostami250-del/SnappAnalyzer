@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - fare-20k-separate
+      - fare-per-km-17000-details-v1
   workflow_dispatch:
 
 jobs:
