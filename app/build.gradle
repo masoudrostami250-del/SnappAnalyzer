@@ -7,11 +7,11 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.snapfloat.twenty'
+        applicationId 'com.snapfloat.seventeen'
         minSdk 23
         targetSdk 35
         versionCode 1
-        versionName '2.2'
+        versionName '1.0'
     }
 
     compileOptions {
