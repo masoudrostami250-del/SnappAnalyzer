@@ -1,17 +1,18 @@
 package com.snapfloat.voice;
 
 import android.accessibilityservice.AccessibilityService;
-import android.speech.tts.TextToSpeech;
-import android.speech.tts.Voice;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.snapfloat.R;
+
 import java.util.ArrayList;
 import java.util.Locale;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,78 +21,15 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 16000.0;
 
-    private TextToSpeech tts;
-    private boolean ttsReady = false;
     private String lastSpokenKey = "";
-    private String pendingPhrase = "";
     private final Handler handler = new Handler(Looper.getMainLooper());
-
+    private MediaPlayer player;
     private final Runnable resetOffer = () -> lastSpokenKey = "";
 
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        tts = new TextToSpeech(this, status -> {
-            if (status != TextToSpeech.SUCCESS) {
-                Log.e(TAG, "TTS initialization failed: " + status);
-                return;
-            }
-            ttsReady = configurePersianFemaleVoice(tts);
-            Log.i(TAG, "Persian female voice ready=" + ttsReady);
-            if (ttsReady && !pendingPhrase.isEmpty()) {
-                speak(pendingPhrase);
-                pendingPhrase = "";
-            }
-        });
-    }
-
-    private boolean configurePersianFemaleVoice(TextToSpeech engine) {
-        Locale fa = new Locale("fa", "IR");
-        int result = engine.setLanguage(fa);
-        if (result == TextToSpeech.LANG_MISSING_DATA
-                || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            return false;
-        }
-
-        engine.setSpeechRate(0.92f);
-        engine.setPitch(1.12f);
-
-        Set<Voice> voices = engine.getVoices();
-        if (voices == null) return true;
-
-        Voice persianVoice = null;
-        Voice femalePersianVoice = null;
-        for (Voice voice : voices) {
-            Locale locale = voice.getLocale();
-            if (locale == null || !"fa".equalsIgnoreCase(locale.getLanguage())) continue;
-
-            if (persianVoice == null) persianVoice = voice;
-
-            String name = voice.getName() == null ? "" : voice.getName().toLowerCase(Locale.ROOT);
-            Set<String> features = voice.getFeatures();
-            boolean female = name.contains("female") || name.contains("woman")
-                    || name.contains("feminine")
-                    || (features != null && (features.contains("female")
-                    || features.contains("gender= female") || features.contains("gender=female")));
-            if (female) {
-                femalePersianVoice = voice;
-                break;
-            }
-        }
-
-        // Prefer an explicitly female Persian voice. If the installed engine does not
-        // expose gender metadata, retain its Persian default and raise pitch slightly.
-        Voice selected = femalePersianVoice != null ? femalePersianVoice : persianVoice;
-        if (selected != null) {
-            try {
-                engine.setVoice(selected);
-                Log.i(TAG, "Selected Persian voice: " + selected.getName()
-                        + " femaleMatch=" + (femalePersianVoice != null));
-            } catch (Exception e) {
-                Log.e(TAG, "Could not select Persian voice", e);
-            }
-        }
-        return true;
+        Log.i(TAG, "Offline Persian audio service connected");
     }
 
     @Override
@@ -147,8 +85,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         lastSpokenKey = key;
         Log.i(TAG, "VOICE_RESULT=" + phrase + " fare=" + fare
                 + " destinationKm=" + destinationKm + " tomanPerKm=" + tomanPerKm);
-        if (ttsReady) speak(phrase);
-        else pendingPhrase = phrase;
+        playPhrase(phrase);
     }
 
     private ArrayList<Double> findDistances(String text) {
@@ -206,10 +143,34 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         handler.postDelayed(resetOffer, 1500);
     }
 
-    private void speak(String phrase) {
-        if (tts != null && ttsReady) {
-            tts.speak(phrase, TextToSpeech.QUEUE_FLUSH, null,
-                    "snapp-" + System.currentTimeMillis());
+    private void playPhrase(String phrase) {
+        int sound = "خوبه".equals(phrase) ? R.raw.voice_good : R.raw.voice_bad;
+        try {
+            releasePlayer();
+            player = MediaPlayer.create(this, sound);
+            if (player == null) {
+                Log.e(TAG, "Could not create audio player for " + phrase);
+                return;
+            }
+            player.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            player.setOnCompletionListener(mp -> releasePlayer());
+            player.setOnErrorListener((mp, what, extra) -> {
+                Log.e(TAG, "Audio playback error what=" + what + " extra=" + extra);
+                releasePlayer();
+                return true;
+            });
+            player.start();
+        } catch (Exception e) {
+            Log.e(TAG, "Audio playback failed", e);
+            releasePlayer();
+        }
+    }
+
+    private void releasePlayer() {
+        if (player != null) {
+            try { if (player.isPlaying()) player.stop(); } catch (Exception ignored) { }
+            try { player.release(); } catch (Exception ignored) { }
+            player = null;
         }
     }
 
@@ -218,11 +179,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     @Override
     public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
-        if (tts != null) {
-            tts.stop();
-            tts.shutdown();
-            tts = null;
-        }
+        releasePlayer();
         super.onDestroy();
     }
 }
