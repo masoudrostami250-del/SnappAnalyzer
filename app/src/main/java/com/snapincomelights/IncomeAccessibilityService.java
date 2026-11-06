@@ -1,10 +1,10 @@
 package com.snapincomelights;
 
 import android.accessibilityservice.AccessibilityService;
+import android.animation.ObjectAnimator;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
 import android.graphics.drawable.GradientDrawable;
-import android.os.Build;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
@@ -23,7 +23,7 @@ public class IncomeAccessibilityService extends AccessibilityService {
     private WindowManager wm;
     private LinearLayout lights;
     private final ArrayList<View> bulbs = new ArrayList<>();
-    private long lastIncomeToman = -1L;
+    private ObjectAnimator whiteAnimator;
     private int activeStatus = 0; // 1 black, 2 green, 3 blue
 
     @Override public void onServiceConnected() {
@@ -46,7 +46,6 @@ public class IncomeAccessibilityService extends AccessibilityService {
         collectText(root, all);
         Long income = readNetIncome(all.toString());
         if (income != null && income >= 0) {
-            lastIncomeToman = income;
             if (income < 1_000_000L) activeStatus = 1;
             else if (income < 3_000_000L) activeStatus = 2;
             else activeStatus = 3;
@@ -77,8 +76,7 @@ public class IncomeAccessibilityService extends AccessibilityService {
     private Long readNetIncome(String raw) {
         if (raw == null) return null;
         String text = digits(raw);
-        String lower = text.toLowerCase();
-        int label = lower.indexOf("درآمد خالص");
+        int label = text.indexOf("درآمد خالص");
         if (label < 0) return null;
         String nearby = text.substring(label, Math.min(text.length(), label + 220));
         Pattern money = Pattern.compile("([0-9][0-9,\\.\\s]{2,})\\s*(تومان|تومن|ریال)?");
@@ -88,8 +86,7 @@ public class IncomeAccessibilityService extends AccessibilityService {
             if (number.length() < 4) continue;
             try {
                 long value = Long.parseLong(number);
-                String unit = m.group(2);
-                if (unit != null && unit.equals("ریال")) value = value / 10L;
+                if ("ریال".equals(m.group(2))) value /= 10L;
                 if (value >= 0 && value <= 10_000_000_000L) return value;
             } catch (NumberFormatException ignored) { }
         }
@@ -119,9 +116,15 @@ public class IncomeAccessibilityService extends AccessibilityService {
             p.x = dp(8);
             p.y = dp(190);
             wm.addView(lights, p);
+            whiteAnimator = ObjectAnimator.ofFloat(bulbs.get(0), View.ALPHA, 0.25f, 1f);
+            whiteAnimator.setDuration(650);
+            whiteAnimator.setRepeatMode(ObjectAnimator.REVERSE);
+            whiteAnimator.setRepeatCount(ObjectAnimator.INFINITE);
+            whiteAnimator.start();
             updateBulbs();
         } catch (Exception e) {
             Log.e(TAG, "overlay create failed", e);
+            stopWhiteAnimation();
             lights = null;
             bulbs.clear();
         }
@@ -132,27 +135,35 @@ public class IncomeAccessibilityService extends AccessibilityService {
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
         lp.bottomMargin = gap;
         v.setLayoutParams(lp);
-        v.setBackground(circle(color, 255));
+        v.setBackground(circle(color));
         lights.addView(v);
         bulbs.add(v);
     }
 
-    private GradientDrawable circle(int color, int alpha) {
+    private GradientDrawable circle(int color) {
         GradientDrawable d = new GradientDrawable();
         d.setShape(GradientDrawable.OVAL);
-        d.setColor((color & 0x00ffffff) | (alpha << 24));
+        d.setColor(color);
         d.setStroke(dp(2), Color.GRAY);
         return d;
     }
 
     private void updateBulbs() {
         if (bulbs.size() != 4) return;
-        bulbs.get(0).setBackground(circle(Color.WHITE, 255));
+        bulbs.get(0).setVisibility(View.VISIBLE);
         int[] colors = {Color.BLACK, Color.GREEN, Color.BLUE};
         for (int i = 0; i < 3; i++) {
+            View bulb = bulbs.get(i + 1);
             boolean selected = activeStatus == i + 1;
-            int c = selected ? colors[i] : Color.rgb(75, 75, 75);
-            bulbs.get(i + 1).setBackground(circle(c, selected ? 255 : 110));
+            bulb.setVisibility(selected ? View.VISIBLE : View.GONE);
+            if (selected) bulb.setBackground(circle(colors[i]));
+        }
+    }
+
+    private void stopWhiteAnimation() {
+        if (whiteAnimator != null) {
+            whiteAnimator.cancel();
+            whiteAnimator = null;
         }
     }
 
@@ -161,6 +172,7 @@ public class IncomeAccessibilityService extends AccessibilityService {
     }
 
     private void removeOverlay() {
+        stopWhiteAnimation();
         if (lights != null && wm != null) {
             try { wm.removeView(lights); } catch (Exception ignored) { }
         }
