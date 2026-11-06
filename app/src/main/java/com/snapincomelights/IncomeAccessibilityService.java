@@ -25,6 +25,8 @@ public class IncomeAccessibilityService extends AccessibilityService {
     private final ArrayList<View> bulbs = new ArrayList<>();
     private ObjectAnimator whiteAnimator;
     private int activeStatus = 0; // 1 black, 2 green, 3 blue
+    // Income is cumulative during a Snapp session. Ignore stale, lower snapshots.
+    private long highestIncomeSeen = -1L;
 
     @Override public void onServiceConnected() {
         super.onServiceConnected();
@@ -37,6 +39,8 @@ public class IncomeAccessibilityService extends AccessibilityService {
         boolean inSnapp = pkg != null && SNAPP.contentEquals(pkg);
         if (!inSnapp) {
             removeOverlay();
+            highestIncomeSeen = -1L;
+            activeStatus = 0;
             return;
         }
         showOverlay();
@@ -46,11 +50,16 @@ public class IncomeAccessibilityService extends AccessibilityService {
         collectText(root, all);
         Long income = readNetIncome(all.toString());
         if (income != null && income >= 0) {
-            if (income < 1_000_000L) activeStatus = 1;
-            else if (income < 3_000_000L) activeStatus = 2;
-            else activeStatus = 3;
-            updateBulbs();
-            Log.d(TAG, "NET_INCOME_TOMAN=" + income + " STATUS=" + activeStatus);
+            if (income >= highestIncomeSeen) {
+                highestIncomeSeen = income;
+                if (income < 1_000_000L) activeStatus = 1;
+                else if (income < 3_000_000L) activeStatus = 2;
+                else activeStatus = 3;
+                updateBulbs();
+                Log.d(TAG, "NET_INCOME_TOMAN=" + income + " STATUS=" + activeStatus);
+            } else {
+                Log.d(TAG, "Ignoring stale income=" + income + " highest=" + highestIncomeSeen);
+            }
         }
     }
 
