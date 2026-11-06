@@ -1,0 +1,1 @@
+The Android build workflow generates the two offline Persian audio prompts with eSpeak NG before compiling the APK. The generated WAV files are packaged into app/src/main/res/raw at build time and are not downloaded by the phone app.
