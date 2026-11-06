@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - voice-per-km-16000-v1
   workflow_dispatch:
 
 jobs:
