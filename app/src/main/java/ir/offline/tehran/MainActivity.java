@@ -1,11 +1,8 @@
 package ir.offline.tehran;
 
 import android.app.Activity;
-import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.view.Gravity;
-import android.widget.Button;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -13,7 +10,6 @@ import org.mapsforge.core.model.LatLong;
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory;
 import org.mapsforge.map.android.util.AndroidUtil;
 import org.mapsforge.map.android.view.MapView;
-import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
@@ -21,11 +17,8 @@ import org.mapsforge.map.rendertheme.InternalRenderTheme;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 public class MainActivity extends Activity {
-    private static final int PICK_MAP = 41;
     private MapView mapView;
     private TileRendererLayer mapLayer;
 
@@ -35,71 +28,42 @@ public class MainActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         TextView info = new TextView(this);
-        info.setText("مسیریاب آفلاین تهران و حومه\nبرای نمایش نقشه، فایل نقشه با پسوند .map را از بستهٔ نقشه انتخاب کنید. پس از بارگذاری، نقشه بدون اینترنت نمایش داده می‌شود.\nمحدودهٔ موردنظر: تهران، ورامین، پاکدشت، قرچک، شهریار و اسلامشهر.");
-        info.setPadding(18,12,18,12);
+        info.setText("نقشه آفلاین تهران و حومه\nتهران، ورامین، پاکدشت، قرچک، شهریار و اسلامشهر\nنقشه همراه برنامه نصب می‌شود و برای نمایش آن اینترنت لازم نیست.");
+        info.setPadding(18, 14, 18, 14);
         root.addView(info);
-        Button choose = new Button(this);
-        choose.setText("انتخاب و بارگذاری نقشهٔ آفلاین");
-        choose.setOnClickListener(v -> {
-            Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            i.addCategory(Intent.CATEGORY_OPENABLE);
-            i.setType("*/*");
-            startActivityForResult(i, PICK_MAP);
-        });
-        root.addView(choose);
         mapView = new MapView(this);
         mapView.setBuiltInZoomControls(true);
         mapView.getMapScaleBar().setVisible(true);
-        root.addView(mapView, new LinearLayout.LayoutParams(-1, 0, 1));
+        root.addView(mapView, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1));
         setContentView(root);
+        loadBundledMap();
     }
 
-    @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != PICK_MAP || resultCode != RESULT_OK || data == null) return;
-        Uri uri = data.getData();
+    private void loadBundledMap() {
         try {
-            File file = new File(getCacheDir(), "region.map");
-            File packed = new File(getCacheDir(), "selected-map.zip");
-            try (InputStream in = getContentResolver().openInputStream(uri);
-                 FileOutputStream out = new FileOutputStream(packed)) {
-                byte[] buf = new byte[65536]; int n;
-                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            }
-            boolean extracted = false;
-            try (ZipInputStream zin = new ZipInputStream(new java.io.FileInputStream(packed))) {
-                ZipEntry entry;
-                while ((entry = zin.getNextEntry()) != null) {
-                    if (!entry.isDirectory() && entry.getName().toLowerCase().endsWith(".map")) {
-                        try (FileOutputStream out = new FileOutputStream(file)) {
-                            byte[] buf = new byte[65536]; int n;
-                            while ((n = zin.read(buf)) > 0) out.write(buf, 0, n);
-                        }
-                        extracted = true;
-                        break;
-                    }
+            File mapFile = new File(getFilesDir(), "iran-offline.map");
+            if (!mapFile.exists() || mapFile.length() == 0) {
+                try (InputStream in = getAssets().open("iran.map");
+                     FileOutputStream out = new FileOutputStream(mapFile)) {
+                    byte[] buffer = new byte[1024 * 1024];
+                    int count;
+                    while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+                    out.getFD().sync();
                 }
-            }
-            if (!extracted) {
-                file = packed;
-            }
-            if (mapLayer != null) {
-                mapView.getLayerManager().getLayers().remove(mapLayer);
-                mapLayer.onDestroy();
             }
             TileCache cache = AndroidUtil.createTileCache(this, "offline-map-cache",
                     mapView.getModel().displayModel.getTileSize(), 1f,
                     mapView.getModel().frameBufferModel.getOverdrawFactor());
-            MapDataStore store = new MapFile(file);
-            mapLayer = new TileRendererLayer(cache, store, mapView.getModel().mapViewPosition,
-                    AndroidGraphicFactory.INSTANCE);
+            mapLayer = new TileRendererLayer(cache, new MapFile(mapFile),
+                    mapView.getModel().mapViewPosition, AndroidGraphicFactory.INSTANCE);
             mapLayer.setXmlRenderTheme(InternalRenderTheme.DEFAULT);
             mapView.getLayerManager().getLayers().add(mapLayer);
             mapView.setCenter(new LatLong(35.6892, 51.3890));
             mapView.setZoomLevel((byte) 11);
-            Toast.makeText(this, "نقشه بارگذاری شد", Toast.LENGTH_LONG).show();
         } catch (Exception e) {
-            Toast.makeText(this, "خطا در خواندن نقشه: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "خطا در بارگذاری نقشه: " + e.getMessage(),
+                    Toast.LENGTH_LONG).show();
         }
     }
 
