@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
 public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String TAG = "SnappVoice16000";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
-    private static final double MIN_TOMAN_PER_KM = 16000.0;
+    private static final double MIN_TOMAN_PER_KM = 17000.0;
 
     private String lastSpokenKey = "";
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -78,7 +78,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         handler.removeCallbacks(resetOffer);
         double tomanPerKm = fare / destinationKm;
-        String phrase = tomanPerKm >= MIN_TOMAN_PER_KM ? "خوبه" : "بده";
+        String phrase = tomanPerKm >= MIN_TOMAN_PER_KM ? "برو" : "نرو";
         String key = fare + "|" + Math.round(destinationKm * 1000.0);
         if (key.equals(lastSpokenKey)) return;
 
@@ -144,7 +144,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     }
 
     private void playPhrase(String phrase) {
-        int sound = "خوبه".equals(phrase) ? R.raw.voice_good : R.raw.voice_bad;
+        int sound = "برو".equals(phrase) ? R.raw.voice_go : R.raw.voice_stop;
         try {
             releasePlayer();
             player = MediaPlayer.create(this, sound);
