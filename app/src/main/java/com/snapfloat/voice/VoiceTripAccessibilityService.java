@@ -1,7 +1,7 @@
 package com.snapfloat.voice;
 
 import android.accessibilityservice.AccessibilityService;
-import android.media.AudioManager;
+import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
@@ -29,7 +29,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        Log.i(TAG, "Offline Persian audio service connected");
+        Log.i(TAG, "Female Persian offline audio service connected");
     }
 
     @Override
@@ -149,10 +149,13 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             releasePlayer();
             player = MediaPlayer.create(this, sound);
             if (player == null) {
-                Log.e(TAG, "Could not create audio player for " + phrase);
+                Log.e(TAG, "Could not create female audio player for " + phrase);
                 return;
             }
-            player.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            player.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build());
             player.setOnCompletionListener(mp -> releasePlayer());
             player.setOnErrorListener((mp, what, extra) -> {
                 Log.e(TAG, "Audio playback error what=" + what + " extra=" + extra);
@@ -161,7 +164,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             });
             player.start();
         } catch (Exception e) {
-            Log.e(TAG, "Audio playback failed", e);
+            Log.e(TAG, "Female audio playback failed", e);
             releasePlayer();
         }
     }
