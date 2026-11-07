@@ -17,7 +17,7 @@ import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.layer.cache.TileCache;
 import org.mapsforge.map.layer.renderer.TileRendererLayer;
 import org.mapsforge.map.reader.MapFile;
-import org.mapsforge.map.rendertheme.internal.MapsforgeThemes;
+import org.mapsforge.map.rendertheme.InternalRenderTheme;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -93,7 +93,7 @@ public class MainActivity extends Activity {
             MapDataStore store = new MapFile(file);
             mapLayer = new TileRendererLayer(cache, store, mapView.getModel().mapViewPosition,
                     AndroidGraphicFactory.INSTANCE);
-            mapLayer.setXmlRenderTheme(MapsforgeThemes.MOTORIDER);
+            mapLayer.setXmlRenderTheme(InternalRenderTheme.DEFAULT);
             mapView.getLayerManager().getLayers().add(mapLayer);
             mapView.setCenter(new LatLong(35.6892, 51.3890));
             mapView.setZoomLevel((byte) 11);
