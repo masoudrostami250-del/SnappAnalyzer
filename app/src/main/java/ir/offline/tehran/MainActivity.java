@@ -43,6 +43,9 @@ public class MainActivity extends Activity implements LocationListener {
     private TextView status;
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
     private OfflineRouter.Place selectedPlace;
+    private List<LatLong> activePath;
+    private int routeProgress=0, lastAnnouncedTurn=-1;
+    private boolean arrived=false;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -170,6 +173,7 @@ public class MainActivity extends Activity implements LocationListener {
                 paint.setColor(Color.BLUE); paint.setStrokeWidth(8); paint.setStyle(Style.STROKE);
                 routeLine=new Polyline(paint,AndroidGraphicFactory.INSTANCE);
                 routeLine.addPoints(path);
+                activePath=path; routeProgress=0; lastAnnouncedTurn=-1; arrived=false;
                 mapView.getLayerManager().getLayers().add(routeLine);
                 mapView.setCenter(path.get(0)); mapView.setZoomLevel((byte)14);
                 status.setText("مسیر آفلاین تا "+destination.name+" محاسبه شد. طول مسیر روی نقشه نمایش داده شده است.");
@@ -180,6 +184,53 @@ public class MainActivity extends Activity implements LocationListener {
 
     @Override public void onLocationChanged(Location location) {
         currentLocation=location;
+        if(activePath==null || activePath.isEmpty() || arrived) return;
+        int best=routeProgress; float bestDistance=Float.MAX_VALUE;
+        int end=Math.min(activePath.size(),routeProgress+1500);
+        for(int i=routeProgress;i<end;i++){
+            LatLong p=activePath.get(i); float[] d=new float[1];
+            Location.distanceBetween(location.getLatitude(),location.getLongitude(),p.latitude,p.longitude,d);
+            if(d[0]<bestDistance){bestDistance=d[0];best=i;}
+        }
+        routeProgress=Math.max(routeProgress,best);
+        LatLong finish=activePath.get(activePath.size()-1);
+        float[] remainingToEnd=new float[1];
+        Location.distanceBetween(location.getLatitude(),location.getLongitude(),finish.latitude,finish.longitude,remainingToEnd);
+        if(remainingToEnd[0]<35){
+            arrived=true;
+            status.setText("به مقصد رسیدید.");
+            if(tts!=null) tts.speak("به مقصد رسیدید.",TextToSpeech.QUEUE_FLUSH,null,"arrived");
+            return;
+        }
+        mapView.setCenter(new LatLong(location.getLatitude(),location.getLongitude()));
+        int turn=-1; double angle=0;
+        for(int i=Math.max(routeProgress+2,2);i<activePath.size()-2;i++){
+            double a=bearing(activePath.get(i-2),activePath.get(i));
+            double b=bearing(activePath.get(i),activePath.get(i+2));
+            double delta=((b-a+540)%360)-180;
+            if(Math.abs(delta)>38){turn=i;angle=delta;break;}
+        }
+        if(turn>lastAnnouncedTurn && turn>=0){
+            double meters=0;
+            for(int i=routeProgress+1;i<=turn;i++){
+                LatLong x=activePath.get(i-1),y=activePath.get(i);
+                float[] d=new float[1]; Location.distanceBetween(x.latitude,x.longitude,y.latitude,y.longitude,d);
+                meters+=d[0];
+            }
+            if(meters<500){
+                lastAnnouncedTurn=turn;
+                String direction=angle>0?"به راست":"به چپ";
+                if(tts!=null) tts.speak("حدود "+Math.max(20,(int)meters)+" متر دیگر "+direction+" بپیچید.",TextToSpeech.QUEUE_FLUSH,null,"turn-"+turn);
+            }
+        }
+    }
+
+    private double bearing(LatLong a,LatLong b){
+        double p1=Math.toRadians(a.latitude),p2=Math.toRadians(b.latitude);
+        double dl=Math.toRadians(b.longitude-a.longitude);
+        double y=Math.sin(dl)*Math.cos(p2);
+        double x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);
+        return (Math.toDegrees(Math.atan2(y,x))+360)%360;
     }
     @Override public void onProviderEnabled(String provider) {}
     @Override public void onProviderDisabled(String provider) {}
