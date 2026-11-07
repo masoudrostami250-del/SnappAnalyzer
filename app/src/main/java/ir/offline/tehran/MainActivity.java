@@ -139,28 +139,62 @@ public class MainActivity extends Activity implements LocationListener {
         });
     }
 
+    private boolean hasLocationPermission() {
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED ||
+               checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED;
+    }
+
     private void requestGps() {
-        if(checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)!=PackageManager.PERMISSION_GRANTED) {
+        if(!hasLocationPermission()) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},77);
             return;
         }
+        boolean gotLast=false;
+        String[] providers={LocationManager.GPS_PROVIDER,LocationManager.NETWORK_PROVIDER,LocationManager.PASSIVE_PROVIDER};
         try {
-            Location last=locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if(last!=null) currentLocation=last;
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,2000,5,this);
-            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,3000,10,this);
-        } catch(SecurityException ignored) {}
+            for(String provider:providers) {
+                try {
+                    if(!locationManager.isProviderEnabled(provider)) continue;
+                    Location last=locationManager.getLastKnownLocation(provider);
+                    if(last!=null && (!gotLast || isBetterLocation(last,currentLocation))) {
+                        currentLocation=last; gotLast=true;
+                    }
+                    long minTime=provider.equals(LocationManager.GPS_PROVIDER)?1000:3000;
+                    float minDistance=provider.equals(LocationManager.GPS_PROVIDER)?1:5;
+                    locationManager.requestLocationUpdates(provider,minTime,minDistance,this);
+                } catch(IllegalArgumentException ignored) {}
+            }
+            if(currentLocation!=null) {
+                status.setText("موقعیت اولیه دریافت شد؛ دقت تقریبی "+(int)currentLocation.getAccuracy()+" متر. منتظر GPS دقیق‌تر...");
+            } else {
+                status.setText("در انتظار موقعیت گوشی؛ مکان‌یابی و GPS را روشن کنید و کنار پنجره یا فضای باز بمانید.");
+            }
+        } catch(SecurityException e) {
+            status.setText("اجازه موقعیت مکانی داده نشده است.");
+        }
+    }
+
+    private boolean isBetterLocation(Location candidate,Location current) {
+        if(current==null) return true;
+        long delta=candidate.getTime()-current.getTime();
+        if(delta>12000) return true;
+        if(delta< -12000) return false;
+        return candidate.hasAccuracy() && (!current.hasAccuracy() || candidate.getAccuracy()<current.getAccuracy());
     }
 
     @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults) {
         super.onRequestPermissionsResult(requestCode,permissions,grantResults);
-        if(requestCode==77 && grantResults.length>0 && grantResults[0]==PackageManager.PERMISSION_GRANTED) requestGps();
-        else status.setText("برای مسیریابی، اجازه دسترسی به موقعیت مکانی لازم است.");
+        if(requestCode==77 && hasLocationPermission()) requestGps();
+        else if(requestCode==77) status.setText("برای مسیریابی، اجازه موقعیت مکانی را فعال کنید.");
     }
 
     private void calculateRoute() {
         if(selectedPlace==null){status.setText("ابتدا مقصد را جست‌وجو و انتخاب کنید.");return;}
-        if(currentLocation==null){status.setText("موقعیت GPS دریافت نشده؛ GPS گوشی را روشن کنید و چند لحظه صبر کنید.");return;}
+        if(currentLocation==null){status.setText("موقعیت گوشی دریافت نشده؛ مکان‌یابی و GPS را روشن کنید و چند لحظه صبر کنید.");return;}
+        if(currentLocation.hasAccuracy() && currentLocation.getAccuracy()>250) {
+            status.setText("دقت موقعیت پایین است (حدود "+(int)currentLocation.getAccuracy()+" متر). چند لحظه در فضای باز صبر کنید تا GPS دقیق‌تر شود.");
+            return;
+        }
         final double lat=currentLocation.getLatitude(),lon=currentLocation.getLongitude();
         final OfflineRouter.Place destination=selectedPlace;
         status.setText("در حال محاسبه مسیر آفلاین...");
@@ -176,7 +210,7 @@ public class MainActivity extends Activity implements LocationListener {
                 activePath=path; routeProgress=0; lastAnnouncedTurn=-1; arrived=false;
                 mapView.getLayerManager().getLayers().add(routeLine);
                 mapView.setCenter(path.get(0)); mapView.setZoomLevel((byte)14);
-                status.setText("مسیر آفلاین تا "+destination.name+" محاسبه شد. طول مسیر روی نقشه نمایش داده شده است.");
+                status.setText("مسیر آفلاین تا "+destination.name+" محاسبه شد. دقت موقعیت شروع: "+(int)currentLocation.getAccuracy()+" متر.");
                 if(tts!=null) tts.speak("مسیر آماده است. حرکت کنید.",TextToSpeech.QUEUE_FLUSH,null,"route-ready");
             });
         });
