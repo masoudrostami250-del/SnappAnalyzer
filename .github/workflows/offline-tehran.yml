@@ -1,7 +1,7 @@
-name: Build Offline Tehran Map
+name: Build Offline Tehran Routing V2
 on:
   push:
-    branches: [offline-tehran-navigation-v1]
+    branches: [offline-tehran-routing-v2]
   workflow_dispatch:
 jobs:
   build:
@@ -18,20 +18,19 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Download and embed offline map
+        run: |
+          mkdir -p app/src/main/assets
+          curl -L --fail --retry 3 'https://data.bbbike.org/osm/mapsforge/region/asia/iran/iran.osm.mapsforge-osm.zip' -o /tmp/iran-map.zip
+          MAP_ENTRY="$(unzip -Z1 /tmp/iran-map.zip | grep -m1 -E '\\.map$')"
+          test -n "$MAP_ENTRY"
+          unzip -p /tmp/iran-map.zip "$MAP_ENTRY" > app/src/main/assets/iran.map
+          test -s app/src/main/assets/iran.map
+          ls -lh app/src/main/assets/iran.map
       - name: Build APK
         run: gradle assembleDebug
-      - name: Prepare offline Iran map package
-        run: |
-          mkdir -p map-package
-          curl -L --fail --retry 3 'https://data.bbbike.org/osm/mapsforge/region/asia/iran/iran.osm.mapsforge-osm.zip' -o map-package/iran-map.zip
-          unzip -l map-package/iran-map.zip | head -40
       - uses: actions/upload-artifact@v4
         with:
-          name: TehranOfflineMap-APK
+          name: TehranOfflineRoutingV2-APK
           path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: Iran-Offline-Map-Data
-          path: map-package/iran-map.zip
           if-no-files-found: error
