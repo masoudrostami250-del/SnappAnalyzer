@@ -2,7 +2,7 @@ package com.snapfloat;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.media.AudioManager;
+import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -34,7 +34,7 @@ public class MainActivity extends Activity {
                 "• کمتر از ۱۶ هزار تومان برای هر کیلومتر مقصد: «بده»\\n\\n" +
                 "فاصله تا مبدأ در محاسبه وارد نمی‌شود.\\n" +
                 "برای هر پیشنهاد سفر فقط یک بار صدا پخش می‌شود.\\n" +
-                "صداها داخل برنامه هستند و به موتور گفتار گوشی نیاز ندارند.\\n\\n" +
+                "صدای زن فارسی داخل برنامه ذخیره شده و آفلاین پخش می‌شود.\\n\\n" +
                 "برای کارکرد برنامه، دسترسی‌پذیری را فعال کنید."
         );
         rules.setTextSize(17);
@@ -47,12 +47,12 @@ public class MainActivity extends Activity {
         root.addView(accessibility);
 
         Button goodTest = new Button(this);
-        goodTest.setText("تست صدا: خوبه");
+        goodTest.setText("تست صدای خانم: خوبه");
         goodTest.setOnClickListener(v -> playTest(R.raw.voice_good));
         root.addView(goodTest);
 
         Button badTest = new Button(this);
-        badTest.setText("تست صدا: بده");
+        badTest.setText("تست صدای خانم: بده");
         badTest.setOnClickListener(v -> playTest(R.raw.voice_bad));
         root.addView(badTest);
 
@@ -67,7 +67,10 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "فایل صوتی آماده نیست", Toast.LENGTH_LONG).show();
                 return;
             }
-            testPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+            testPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build());
             testPlayer.setOnCompletionListener(mp -> releaseTestPlayer());
             testPlayer.start();
         } catch (Exception e) {
