@@ -69,7 +69,7 @@ public class OfflineRouter {
         return best;
     }
     public List<LatLong> route(double fromLat,double fromLon,Place destination) {
-        long start=nearest(fromLat,fromLon), goal=destination.node;
+        long start=nearest(fromLat,fromLon), goal=nearest(destination.lat,destination.lon);
         if(start<0 || !nodes.containsKey(goal)) return Collections.emptyList();
         HashMap<Long,Double> distances=new HashMap<>();
         HashMap<Long,Long> previous=new HashMap<>();
