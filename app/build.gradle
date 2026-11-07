@@ -1,27 +1,23 @@
 plugins {
     id 'com.android.application'
 }
-
 android {
-    namespace 'com.snapfloat'
+    namespace 'ir.offline.tehran'
     compileSdk 35
-
     defaultConfig {
-        applicationId 'com.snapfloat'
+        applicationId 'ir.offline.tehran'
         minSdk 23
-        targetSdk 35
-        versionCode 13
-        versionName '2.1'
+        targetSdk 28
+        versionCode 1
+        versionName '1.0'
     }
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
-    }
+}
+dependencies {
+    implementation 'org.mapsforge:mapsforge-map-android:0.21.0'
+    implementation 'org.mapsforge:mapsforge-map:0.21.0'
+    implementation 'org.mapsforge:mapsforge-themes:0.21.0'
 }
