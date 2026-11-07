@@ -11,11 +11,6 @@ android {
         versionCode 1
         versionName '1.0'
     }
-    // These large binary assets are already compressed/packed; do not recompress
-    // them during APK packaging, which otherwise exhausts the build JVM heap.
-    androidResources {
-        noCompress += ['map', 'db']
-    }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
