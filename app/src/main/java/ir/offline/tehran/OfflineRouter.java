@@ -59,18 +59,29 @@ public class OfflineRouter {
         }
         return out;
     }
-    private long nearest(double lat,double lon){
-        long best=-1; double score=Double.MAX_VALUE;
-        for(Node n:nodes.values()){
-            double dy=(n.lat-lat)*111000.0, dx=(n.lon-lon)*90000.0;
-            double s=dx*dx+dy*dy;
-            if(s<score){score=s;best=n.id;}
+    private static double distanceMeters(double lat1,double lon1,double lat2,double lon2) {
+        double r=6371000.0;
+        double p1=Math.toRadians(lat1),p2=Math.toRadians(lat2);
+        double dp=Math.toRadians(lat2-lat1),dl=Math.toRadians(lon2-lon1);
+        double h=Math.sin(dp/2)*Math.sin(dp/2)+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)*Math.sin(dl/2);
+        return 2*r*Math.atan2(Math.sqrt(h),Math.sqrt(Math.max(0,1-h)));
+    }
+    private Node nearest(double lat,double lon) {
+        Node best=null; double bestDistance=Double.MAX_VALUE;
+        for(Node n:nodes.values()) {
+            double d=distanceMeters(lat,lon,n.lat,n.lon);
+            if(d<bestDistance){bestDistance=d;best=n;}
         }
         return best;
     }
     public List<LatLong> route(double fromLat,double fromLon,Place destination) {
-        long start=nearest(fromLat,fromLon), goal=nearest(destination.lat,destination.lon);
-        if(start<0 || !nodes.containsKey(goal)) return Collections.emptyList();
+        Node startNode=nearest(fromLat,fromLon), goalNode=nearest(destination.lat,destination.lon);
+        if(startNode==null || goalNode==null) return Collections.emptyList();
+        // Never silently snap a start or destination to a distant, unrelated road.
+        if(distanceMeters(fromLat,fromLon,startNode.lat,startNode.lon)>600 ||
+           distanceMeters(destination.lat,destination.lon,goalNode.lat,goalNode.lon)>600)
+            return Collections.emptyList();
+        long start=startNode.id, goal=goalNode.id;
         HashMap<Long,Double> distances=new HashMap<>();
         HashMap<Long,Long> previous=new HashMap<>();
         PriorityQueue<long[]> queue=new PriorityQueue<>(Comparator.comparingDouble(a->Double.longBitsToDouble(a[1])));
@@ -98,6 +109,11 @@ public class OfflineRouter {
             Long p=previous.get(cur); if(p==null) return Collections.emptyList(); cur=p;
         }
         Collections.reverse(path);
+        // Keep the real GPS and selected destination as visible route endpoints.
+        if(distanceMeters(fromLat,fromLon,path.get(0).latitude,path.get(0).longitude)>5)
+            path.add(0,new LatLong(fromLat,fromLon));
+        if(distanceMeters(destination.lat,destination.lon,path.get(path.size()-1).latitude,path.get(path.size()-1).longitude)>5)
+            path.add(new LatLong(destination.lat,destination.lon));
         return path;
     }
     public void close(){db.close();}
