@@ -162,7 +162,7 @@ public class MainActivity extends Activity implements LocationListener {
                     long minTime=provider.equals(LocationManager.GPS_PROVIDER)?1000:3000;
                     float minDistance=provider.equals(LocationManager.GPS_PROVIDER)?1:5;
                     locationManager.requestLocationUpdates(provider,minTime,minDistance,this);
-                } catch(IllegalArgumentException ignored) {}
+                } catch(IllegalArgumentException | SecurityException ignored) {}
             }
             if(currentLocation!=null) {
                 status.setText("موقعیت اولیه دریافت شد؛ دقت تقریبی "+(int)currentLocation.getAccuracy()+" متر. منتظر GPS دقیق‌تر...");
