@@ -21,6 +21,8 @@ import org.mapsforge.map.rendertheme.internal.MapsforgeThemes;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class MainActivity extends Activity {
     private static final int PICK_MAP = 41;
@@ -58,10 +60,28 @@ public class MainActivity extends Activity {
         Uri uri = data.getData();
         try {
             File file = new File(getCacheDir(), "region.map");
+            File packed = new File(getCacheDir(), "selected-map.zip");
             try (InputStream in = getContentResolver().openInputStream(uri);
-                 FileOutputStream out = new FileOutputStream(file)) {
+                 FileOutputStream out = new FileOutputStream(packed)) {
                 byte[] buf = new byte[65536]; int n;
                 while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            }
+            boolean extracted = false;
+            try (ZipInputStream zin = new ZipInputStream(new java.io.FileInputStream(packed))) {
+                ZipEntry entry;
+                while ((entry = zin.getNextEntry()) != null) {
+                    if (!entry.isDirectory() && entry.getName().toLowerCase().endsWith(".map")) {
+                        try (FileOutputStream out = new FileOutputStream(file)) {
+                            byte[] buf = new byte[65536]; int n;
+                            while ((n = zin.read(buf)) > 0) out.write(buf, 0, n);
+                        }
+                        extracted = true;
+                        break;
+                    }
+                }
+            }
+            if (!extracted) {
+                file = packed;
             }
             if (mapLayer != null) {
                 mapView.getLayerManager().getLayers().remove(mapLayer);
@@ -73,7 +93,7 @@ public class MainActivity extends Activity {
             MapDataStore store = new MapFile(file);
             mapLayer = new TileRendererLayer(cache, store, mapView.getModel().mapViewPosition,
                     AndroidGraphicFactory.INSTANCE);
-            mapLayer.setXmlRenderTheme(MapsforgeThemes.DEFAULT);
+            mapLayer.setXmlRenderTheme(MapsforgeThemes.MOTORIDER);
             mapView.getLayerManager().getLayers().add(mapLayer);
             mapView.setCenter(new LatLong(35.6892, 51.3890));
             mapView.setZoomLevel((byte) 11);
