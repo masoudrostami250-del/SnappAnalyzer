@@ -22,7 +22,7 @@ jobs:
         run: |
           mkdir -p app/src/main/assets
           curl -L --fail --retry 3 'https://data.bbbike.org/osm/mapsforge/region/asia/iran/iran.osm.mapsforge-osm.zip' -o /tmp/iran-map.zip
-          MAP_ENTRY="$(unzip -Z1 /tmp/iran-map.zip | grep -m1 -E '\\.map$')"
+          MAP_ENTRY="$(unzip -Z1 /tmp/iran-map.zip | grep -m1 -E '\.map$')"
           test -n "$MAP_ENTRY"
           unzip -p /tmp/iran-map.zip "$MAP_ENTRY" > app/src/main/assets/iran.map
           test -s app/src/main/assets/iran.map
