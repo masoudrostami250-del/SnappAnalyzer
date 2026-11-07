@@ -30,8 +30,8 @@ public class MainActivity extends Activity {
         TextView rules = new TextView(this);
         rules.setText(
                 "\\nقانون برنامه:\\n" +
-                "• ۱۶ هزار تومان یا بیشتر برای هر کیلومتر مقصد: «خوبه»\\n" +
-                "• کمتر از ۱۶ هزار تومان برای هر کیلومتر مقصد: «بده»\\n\\n" +
+                "• ۱۷ هزار تومان یا بیشتر برای هر کیلومتر مقصد: «برو»\\n" +
+                "• کمتر از ۱۷ هزار تومان برای هر کیلومتر مقصد: «نرو»\\n\\n" +
                 "فاصله تا مبدأ در محاسبه وارد نمی‌شود.\\n" +
                 "برای هر پیشنهاد سفر فقط یک بار صدا پخش می‌شود.\\n" +
                 "صدای زن فارسی داخل برنامه ذخیره شده و آفلاین پخش می‌شود.\\n\\n" +
@@ -47,13 +47,13 @@ public class MainActivity extends Activity {
         root.addView(accessibility);
 
         Button goodTest = new Button(this);
-        goodTest.setText("تست صدای خانم: خوبه");
-        goodTest.setOnClickListener(v -> playTest(R.raw.voice_good));
+        goodTest.setText("تست صدای خانم: برو");
+        goodTest.setOnClickListener(v -> playTest(R.raw.voice_go));
         root.addView(goodTest);
 
         Button badTest = new Button(this);
-        badTest.setText("تست صدای خانم: بده");
-        badTest.setOnClickListener(v -> playTest(R.raw.voice_bad));
+        badTest.setText("تست صدای خانم: نرو");
+        badTest.setOnClickListener(v -> playTest(R.raw.voice_stop));
         root.addView(badTest);
 
         setContentView(root);
