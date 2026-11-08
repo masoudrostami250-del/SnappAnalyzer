@@ -17,9 +17,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class VoiceTripAccessibilityService extends AccessibilityService {
-    private static final String TAG = "SnappVoice16000";
+    private static final String TAG = "SnappVoice17000Pickup2km";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
+    private static final double MAX_PICKUP_KM = 2.0;
 
     private String lastSpokenKey = "";
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -69,8 +70,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             return;
         }
 
-        // First distinct distance is pickup; second is destination. If only one appears, use it.
-        double destinationKm = distances.size() >= 2 ? distances.get(1) : distances.get(0);
+        // As in the previous version: first distance is pickup, second is destination.
+        // If pickup cannot be verified, fail safely and do not approve the trip.
+        double pickupKm = distances.get(0);
+        boolean hasPickupAndDestination = distances.size() >= 2;
+        double destinationKm = hasPickupAndDestination ? distances.get(1) : distances.get(0);
         if (destinationKm <= 0) {
             scheduleOfferReset();
             return;
@@ -78,13 +82,18 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         handler.removeCallbacks(resetOffer);
         double tomanPerKm = fare / destinationKm;
-        String phrase = tomanPerKm >= MIN_TOMAN_PER_KM ? "برو" : "نرو";
-        String key = fare + "|" + Math.round(destinationKm * 1000.0);
+        boolean pickupAllowed = hasPickupAndDestination && pickupKm <= MAX_PICKUP_KM;
+        boolean fareAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
+        String phrase = pickupAllowed && fareAllowed ? "برو" : "نرو";
+        String key = fare + "|" + Math.round(pickupKm * 1000.0)
+                + "|" + Math.round(destinationKm * 1000.0);
         if (key.equals(lastSpokenKey)) return;
 
         lastSpokenKey = key;
-        Log.i(TAG, "VOICE_RESULT=" + phrase + " fare=" + fare
-                + " destinationKm=" + destinationKm + " tomanPerKm=" + tomanPerKm);
+        Log.i(TAG, "VOICE_RESULT=" + phrase + " pickupKm=" + pickupKm
+                + " destinationKm=" + destinationKm + " fare=" + fare
+                + " tomanPerKm=" + tomanPerKm + " pickupAllowed=" + pickupAllowed
+                + " fareAllowed=" + fareAllowed);
         playPhrase(phrase);
     }
 
