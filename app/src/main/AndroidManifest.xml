@@ -8,7 +8,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Snapp Voice 17000 + Pickup 2km"
+        android:label="Snapp Voice 17000 + Pickup 1km"
         android:allowBackup="false"
         android:supportsRtl="true">
 
