@@ -1,9 +1,9 @@
-name: Build Snapp Voice 17000 Female Pickup 2km
+name: Build Snapp Voice 17000 Female Pickup 1km
 
 on:
   push:
     branches:
-      - voice-17000-pickup-2km-female-v1
+      - voice-17000-pickup-1km-female-v1
   workflow_dispatch:
 
 jobs:
@@ -62,6 +62,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SnappVoice17000Pickup2km-female
+          name: SnappVoice17000Pickup1km-female
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
