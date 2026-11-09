@@ -7,7 +7,7 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.snapfloat.voice17000pickup2km'
+        applicationId 'com.snapfloat.voice17000pickup1km'
         minSdk 23
         targetSdk 35
         versionCode 1
