@@ -17,10 +17,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class VoiceTripAccessibilityService extends AccessibilityService {
-    private static final String TAG = "SnappVoice17000Pickup1km";
+    private static final String TAG = "SnappVoice17000Pickup1_5km";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
-    private static final double MAX_PICKUP_KM = 1.0;
+    private static final double MAX_PICKUP_KM = 1.5;
 
     private String lastSpokenKey = "";
     private final Handler handler = new Handler(Looper.getMainLooper());
