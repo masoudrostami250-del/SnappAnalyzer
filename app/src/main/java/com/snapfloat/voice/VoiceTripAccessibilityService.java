@@ -108,11 +108,9 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 String unit = matcher.group(2).toLowerCase(Locale.ROOT);
                 if (unit.equals("متر") || unit.equals("m")) value /= 1000.0;
                 if (value <= 0 || value > 100) continue;
-                boolean duplicate = false;
-                for (Double prior : distances) {
-                    if (Math.abs(prior - value) < 0.0005) { duplicate = true; break; }
-                }
-                if (!duplicate) distances.add(value);
+                // Keep repeated equal distances: Snapp may show 1 km for both
+                // pickup and destination. Removing duplicates loses the destination.
+                distances.add(value);
             } catch (Exception ignored) { }
         }
         return distances;
