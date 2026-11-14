@@ -75,8 +75,8 @@ public class SnappScreenOcrService extends Service {
       reader.setOnImageAvailableListener(r->processLatest(r),handler);
       display=projection.createVirtualDisplay("SnappOCR",width,height,density,DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,reader.getSurface(),null,handler);
       projection.registerCallback(new MediaProjection.Callback(){@Override public void onStop(){stopSelf();}},handler);
-      getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putBoolean("ocr_running",true).apply();
-    }catch(Exception e){ Log.e(TAG,"Projection start failed",e); stopSelf(); }
+      getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putBoolean("ocr_running",true).putString("ocr_status","سرویس خواندن تصویر فعال شد؛ منتظر پیشنهاد سفر").apply();
+    }catch(Exception e){ Log.e(TAG,"Projection start failed",e); getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putString("ocr_status","خطای شروع ضبط صفحه: "+e.getClass().getSimpleName()).apply(); stopSelf(); }
     return START_NOT_STICKY;
   }
   private void processLatest(ImageReader r){
@@ -104,14 +104,35 @@ public class SnappScreenOcrService extends Service {
     String raw=digits(all.toString());
     Long fare=findFare(raw); ArrayList<Double> ds=findDistances(raw);
     if(ds.size()<2) ds=findDistancesByRows(result);
-    getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putString("last_ocr_text",raw).apply();
+    double pickup=ds.size()>0?ds.get(0):-1;
+    double destination=ds.size()>1?ds.get(1):-1;
+    String reason;
+    if(raw.trim().isEmpty()) reason="OCR چیزی از صفحه نخواند";
+    else if(fare==null) reason="مبلغ سفر از متن خوانده‌شده تشخیص داده نشد";
+    else if(ds.size()<2) reason="دو مسافت مبدأ و مقصد تشخیص داده نشد";
+    else if(pickup<=0 || destination<=0) reason="یکی از مسافت‌ها نامعتبر است";
+    else reason="اطلاعات سفر استخراج شد";
+    getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit()
+      .putString("last_ocr_text",raw)
+      .putString("last_fare",fare==null?"تشخیص داده نشد":String.valueOf(fare))
+      .putString("last_distances",ds.toString())
+      .putString("ocr_status",reason)
+      .putLong("last_ocr_time",System.currentTimeMillis())
+      .apply();
     if(fare==null || ds.size()<2) return;
-    double pickup=ds.get(0), destination=ds.get(1);
     if(pickup<=0 || destination<=0) return;
     boolean go=pickup<=2.0 && fare/destination>=17000.0;
     String key=fare+"|"+Math.round(pickup*1000)+"|"+Math.round(destination*1000);
-    if(key.equals(lastKey)) return;
+    if(key.equals(lastKey)) {
+      getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putString("ocr_status","همین پیشنهاد قبلاً بررسی شده؛ صدای تکراری پخش نشد").apply();
+      return;
+    }
     lastKey=key;
+    getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit()
+      .putString("ocr_status",go?"نتیجه: برو؛ صدا در حال پخش است":"نتیجه: نرو؛ صدا در حال پخش است")
+      .putString("last_decision",go?"برو":"نرو")
+      .putString("last_rate",String.format(java.util.Locale.US,"%.0f",fare/destination))
+      .apply();
     Log.i(TAG,"OCR_RESULT="+(go?"برو":"نرو")+" pickup="+pickup+" destination="+destination+" fare="+fare);
     play(go);
   }
@@ -176,7 +197,7 @@ public class SnappScreenOcrService extends Service {
     }catch(Exception e){Log.e(TAG,"Audio failed",e);}
   }
   @Override public void onDestroy(){
-    getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putBoolean("ocr_running",false).apply();
+    getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putBoolean("ocr_running",false).putString("ocr_status","سرویس خواندن تصویر متوقف شد").apply();
     if(display!=null)display.release(); if(reader!=null)reader.close(); if(projection!=null)projection.stop();
     if(recognizer!=null)recognizer.close(); if(player!=null)player.release();
     if(thread!=null)thread.quitSafely(); super.onDestroy();
