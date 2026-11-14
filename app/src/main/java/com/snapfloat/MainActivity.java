@@ -149,6 +149,42 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_SCREEN_CAPTURE) return;
+
+        if (resultCode != RESULT_OK || data == null) {
+            Toast.makeText(this, "اجازه خواندن صفحه داده نشد؛ OCR شروع نشد", Toast.LENGTH_LONG).show();
+            getSharedPreferences("voice_diagnostics", MODE_PRIVATE).edit()
+                    .putBoolean("ocr_running", false)
+                    .putString("ocr_status", "اجازه ضبط صفحه رد شد")
+                    .apply();
+            return;
+        }
+
+        Intent service = new Intent(this, com.snapfloat.voice.SnappScreenOcrService.class);
+        service.putExtra(com.snapfloat.voice.SnappScreenOcrService.EXTRA_CODE, resultCode);
+        service.putExtra(com.snapfloat.voice.SnappScreenOcrService.EXTRA_DATA, data);
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                startForegroundService(service);
+            } else {
+                startService(service);
+            }
+            getSharedPreferences("voice_diagnostics", MODE_PRIVATE).edit()
+                    .putString("ocr_status", "اجازه داده شد؛ سرویس OCR در حال شروع است")
+                    .apply();
+            Toast.makeText(this, "خواندن تصویری فعال شد؛ اکنون وارد اسنپ شوید", Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            getSharedPreferences("voice_diagnostics", MODE_PRIVATE).edit()
+                    .putBoolean("ocr_running", false)
+                    .putString("ocr_status", "شروع OCR ناموفق: " + e.getClass().getSimpleName())
+                    .apply();
+            Toast.makeText(this, "شروع OCR ناموفق بود: " + e.getClass().getSimpleName(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         refreshDiagnosticReport();
