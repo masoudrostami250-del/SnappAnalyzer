@@ -8,6 +8,7 @@ on:
       - voice-selector-video-clips-v1
       - voice-snapp-accessibility-diagnostic-v1
       - voice-17000-pickup2km-screen-ocr-v1
+      - voice-17000-pickup2km-ocr-diagnostics-v2
   workflow_dispatch:
 
 jobs:
