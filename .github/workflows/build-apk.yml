@@ -1,4 +1,4 @@
-name: Build Snapp Voice 17000 Pickup 2km - Screen OCR AndroidX
+name: Build Snapp Voice 17000 Pickup 2km - Screen OCR Java fix
 
 on:
   push:
