@@ -132,9 +132,9 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         StringBuilder report = new StringBuilder();
         report.append("رویداد: ").append(event.getEventType())
-                .append("\\nبسته رویداد: ").append(eventPackage)
-                .append("\\nبسته پنجره: ").append(rootPackage)
-                .append("\\nکلاس: ").append(event.getClassName() == null ? "" : event.getClassName());
+                .append("\nبسته رویداد: ").append(eventPackage)
+                .append("\nبسته پنجره: ").append(rootPackage)
+                .append("\nکلاس: ").append(event.getClassName() == null ? "" : event.getClassName());
 
         boolean looksLikeSnapp = SNAPP_PACKAGE.equals(eventPackage)
                 || SNAPP_PACKAGE.equals(rootPackage)
@@ -153,7 +153,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             }
             String content = visible.toString().trim();
             if (content.length() > 6000) content = content.substring(0, 6000);
-            report.append("\\n\\nمتن قابل‌مشاهده اسنپ:\\n").append(content.isEmpty()
+            report.append("\n\nمتن قابل‌مشاهده اسنپ:\n").append(content.isEmpty()
                     ? "[متنی از پنجره دریافت نشد]" : content);
             getSharedPreferences("voice_diagnostics", MODE_PRIVATE).edit()
                     .putString("last_snapp_capture", report.toString())
