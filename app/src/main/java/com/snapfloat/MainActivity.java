@@ -10,6 +10,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -127,7 +128,9 @@ public class MainActivity extends Activity {
         root.addView(diagnosticReport);
         refreshDiagnosticReport();
 
-        setContentView(root);
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.addView(root);
+        setContentView(scrollView);
     }
 
     @Override
