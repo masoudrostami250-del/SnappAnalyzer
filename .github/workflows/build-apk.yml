@@ -3,7 +3,7 @@ name: Build Snapp Voice 17000 Female Pickup 2km Fixed
 on:
   push:
     branches:
-      - voice-17000-pickup-2km-fix-duplicate-distances-v1
+      - voice-17000-pickup-2km-snapp-update-resilient-v1
   workflow_dispatch:
 
 jobs:
