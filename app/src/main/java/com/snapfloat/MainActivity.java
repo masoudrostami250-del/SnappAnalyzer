@@ -3,7 +3,7 @@ package com.snapfloat;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.media.MediaPlayer;
+import android.media.MediaPlayer;\nimport android.media.projection.MediaProjectionManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.Button;
@@ -18,7 +18,7 @@ public class MainActivity extends Activity {
     private static final String PREFS = "voice_settings";
     private static final String VOICE_KEY = "selected_voice";
     private MediaPlayer testPlayer;
-    private TextView diagnosticReport;
+    private TextView diagnosticReport;\n    private static final int REQUEST_SCREEN_CAPTURE = 7401;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,7 +89,7 @@ public class MainActivity extends Activity {
         badTest.setOnClickListener(v -> playTest(getVoiceResource(false)));
         root.addView(badTest);
 
-        TextView diagnosticTitle = new TextView(this);
+        Button startOcr = new Button(this);\n        startOcr.setText("فعال‌سازی خواندن تصویری اسنپ (OCR)");\n        startOcr.setOnClickListener(v -> {\n            MediaProjectionManager manager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);\n            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE);\n        });\n        root.addView(startOcr);\n\n        Button stopOcr = new Button(this);\n        stopOcr.setText("توقف خواندن تصویری");\n        stopOcr.setOnClickListener(v -> stopService(new Intent(this, com.snapfloat.voice.SnappScreenOcrService.class)));\n        root.addView(stopOcr);\n\n        TextView diagnosticTitle = new TextView(this);
         diagnosticTitle.setText("\n\nبخش عیب‌یابی دریافت اطلاعات اسنپ");
         diagnosticTitle.setTextSize(18);
         root.addView(diagnosticTitle);
