@@ -3,7 +3,6 @@ package com.snapfloat;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -18,7 +17,6 @@ public class MainActivity extends Activity {
     private static final String PREFS = "voice_settings";
     private static final String VOICE_KEY = "selected_voice";
     private MediaPlayer testPlayer;
-    private RadioGroup voiceChoices;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,7 +46,7 @@ public class MainActivity extends Activity {
         rules.setTextSize(16);
         root.addView(rules);
 
-        voiceChoices = new RadioGroup(this);
+        RadioGroup voiceChoices = new RadioGroup(this);
         voiceChoices.setOrientation(RadioGroup.VERTICAL);
         String[] labels = {
                 "صدای زن پیش‌فرض",
@@ -114,14 +112,18 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "فایل صوتی آماده نیست", Toast.LENGTH_LONG).show();
                 return;
             }
-            testPlayer.setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build());
+            // MediaPlayer.create() returns an already-prepared player.
+            // Keep its default media audio route and set an explicit audible volume.
+            testPlayer.setVolume(1.0f, 1.0f);
             testPlayer.setOnCompletionListener(mp -> releaseTestPlayer());
+            testPlayer.setOnErrorListener((mp, what, extra) -> {
+                Toast.makeText(this, "خطای پخش صدا: " + what, Toast.LENGTH_LONG).show();
+                releaseTestPlayer();
+                return true;
+            });
             testPlayer.start();
         } catch (Exception e) {
-            Toast.makeText(this, "پخش صدا انجام نشد", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "پخش صدا انجام نشد: " + e.getClass().getSimpleName(), Toast.LENGTH_LONG).show();
             releaseTestPlayer();
         }
     }
