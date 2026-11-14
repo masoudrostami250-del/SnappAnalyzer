@@ -20,8 +20,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
     private static final double MAX_PICKUP_KM = 2.0;
-    private static final long ANALYZE_DELAY_MS = 350L;
-    private static final long RESET_DELAY_MS = 1800L;
+    private static final long ANALYZE_DELAY_MS = 900L;
+    private static final long RESET_DELAY_MS = 7000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final StringBuilder pendingEventText = new StringBuilder();
@@ -31,7 +31,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
     private final Runnable analyzePending = () -> {
         String snapshot = pendingEventText.toString();
-        pendingEventText.setLength(0);
+        // Keep partial accessibility text briefly: Snapp may publish fare and
+        // route distances in separate events, not in one complete event.
         if (!snapshot.trim().isEmpty()) analyzeOffer(snapshot);
     };
     private final Runnable resetOffer = () -> {
@@ -105,6 +106,10 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             } else if (!pendingEventText.toString().contains(current)) {
                 // Keep unique partial event payloads until a complete snapshot arrives.
                 pendingEventText.append(' ').append(current);
+                // Bound memory if a screen continuously emits changing accessibility text.
+                if (pendingEventText.length() > 24000) {
+                    pendingEventText.delete(0, pendingEventText.length() - 16000);
+                }
             }
             handler.removeCallbacks(analyzePending);
             handler.postDelayed(analyzePending, ANALYZE_DELAY_MS);
