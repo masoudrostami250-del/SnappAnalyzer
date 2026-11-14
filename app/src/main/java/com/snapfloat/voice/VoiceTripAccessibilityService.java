@@ -273,7 +273,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     }
 
     private void playPhrase(String phrase) {
-        int sound = "برو".equals(phrase) ? R.raw.voice_go : R.raw.voice_stop;
+        int sound = getVoiceResource("برو".equals(phrase));
         try {
             releasePlayer();
             player = MediaPlayer.create(this, sound);
@@ -295,6 +295,16 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         } catch (Exception e) {
             Log.e(TAG, "Female audio playback failed", e);
             releasePlayer();
+        }
+    }
+
+    private int getVoiceResource(boolean go) {
+        int choice = getSharedPreferences("voice_settings", MODE_PRIVATE).getInt("selected_voice", 0);
+        switch (choice) {
+            case 1: return go ? R.raw.voice1_go : R.raw.voice1_stop;
+            case 2: return go ? R.raw.voice2_go : R.raw.voice2_stop;
+            case 3: return go ? R.raw.voice3_go : R.raw.voice3_stop;
+            default: return go ? R.raw.voice_go : R.raw.voice_stop;
         }
     }
 
