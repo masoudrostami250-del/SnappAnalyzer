@@ -95,7 +95,18 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             }
             lastWindowSignature = signature;
 
-            pendingEventText.append(' ').append(current);
+            String normalizedCurrent = normalizeDigits(current);
+            boolean completeSnapshot = findFare(normalizedCurrent) != null
+                    && findDistances(normalizedCurrent).size() >= 2;
+            if (completeSnapshot) {
+                // A complete window snapshot replaces older partial events, avoiding
+                // duplicate distance pairs when Android emits repeated content events.
+                pendingEventText.setLength(0);
+                pendingEventText.append(current);
+            } else if (!pendingEventText.toString().contains(current)) {
+                // Keep unique partial event payloads until a complete snapshot arrives.
+                pendingEventText.append(' ').append(current);
+            }
             handler.removeCallbacks(analyzePending);
             handler.postDelayed(analyzePending, ANALYZE_DELAY_MS);
         } catch (Exception e) {
