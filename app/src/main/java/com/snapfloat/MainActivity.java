@@ -16,7 +16,8 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
     private static final String PREFS = "voice_settings";
     private static final String VOICE_KEY = "selected_voice";
-    private MediaPlayer testPlayer;\n    private TextView diagnosticReport;
+    private MediaPlayer testPlayer;
+    private TextView diagnosticReport;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,7 +89,7 @@ public class MainActivity extends Activity {
         root.addView(badTest);
 
         TextView diagnosticTitle = new TextView(this);
-        diagnosticTitle.setText("\\n\\nبخش عیب‌یابی دریافت اطلاعات اسنپ");
+        diagnosticTitle.setText("\n\nبخش عیب‌یابی دریافت اطلاعات اسنپ");
         diagnosticTitle.setTextSize(18);
         root.addView(diagnosticTitle);
 
@@ -143,9 +144,9 @@ public class MainActivity extends Activity {
         String lastEvent = prefs.getString("last_event", "");
         String status = enabled ? "وضعیت پایش: روشن" : "وضعیت پایش: خاموش";
         if (capture.isEmpty()) {
-            diagnosticReport.setText(status + "\\n\\nهنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.\\n\\nآخرین رویداد:\\n" + lastEvent);
+            diagnosticReport.setText(status + "\n\nهنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.\n\nآخرین رویداد:\n" + lastEvent);
         } else {
-            diagnosticReport.setText(status + "\\n\\n" + capture);
+            diagnosticReport.setText(status + "\n\n" + capture);
         }
     }
 
