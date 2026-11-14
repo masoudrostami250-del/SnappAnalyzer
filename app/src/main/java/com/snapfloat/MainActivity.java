@@ -3,7 +3,8 @@ package com.snapfloat;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.media.MediaPlayer;\nimport android.media.projection.MediaProjectionManager;
+import android.media.MediaPlayer;
+import android.media.projection.MediaProjectionManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.Button;
@@ -18,7 +19,8 @@ public class MainActivity extends Activity {
     private static final String PREFS = "voice_settings";
     private static final String VOICE_KEY = "selected_voice";
     private MediaPlayer testPlayer;
-    private TextView diagnosticReport;\n    private static final int REQUEST_SCREEN_CAPTURE = 7401;
+    private TextView diagnosticReport;
+    private static final int REQUEST_SCREEN_CAPTURE = 7401;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,14 +37,24 @@ public class MainActivity extends Activity {
 
         TextView rules = new TextView(this);
         rules.setText(
-                "قانون برنامه:\n" +
-                "• مبدأ تا ۲ کیلومتر و مقصد حداقل ۱۷ هزار تومان برای هر کیلومتر: «برو»\n" +
-                "• مبدأ بیشتر از ۲ کیلومتر: «نرو»\n" +
-                "• مقصد کمتر از ۱۷ هزار تومان برای هر کیلومتر: «نرو»\n\n" +
-                "محاسبه نرخ فقط با مسافت مقصد انجام می‌شود؛ مسافت مبدأ به نرخ مقصد اضافه نمی‌شود.\n" +
-                "اگر فاصله مبدأ و مقصد هر دو قابل تشخیص نباشند، برنامه سفر را تأیید نمی‌کند.\n" +
-                "برای هر پیشنهاد سفر فقط یک بار صدا پخش می‌شود.\n" +
-                "صداها داخل برنامه ذخیره شده‌اند و برای پخش به اینترنت نیاز ندارند.\n\n" +
+                "قانون برنامه:
+" +
+                "• مبدأ تا ۲ کیلومتر و مقصد حداقل ۱۷ هزار تومان برای هر کیلومتر: «برو»
+" +
+                "• مبدأ بیشتر از ۲ کیلومتر: «نرو»
+" +
+                "• مقصد کمتر از ۱۷ هزار تومان برای هر کیلومتر: «نرو»
+
+" +
+                "محاسبه نرخ فقط با مسافت مقصد انجام می‌شود؛ مسافت مبدأ به نرخ مقصد اضافه نمی‌شود.
+" +
+                "اگر فاصله مبدأ و مقصد هر دو قابل تشخیص نباشند، برنامه سفر را تأیید نمی‌کند.
+" +
+                "برای هر پیشنهاد سفر فقط یک بار صدا پخش می‌شود.
+" +
+                "صداها داخل برنامه ذخیره شده‌اند و برای پخش به اینترنت نیاز ندارند.
+
+" +
                 "صدای موردنظر را انتخاب کنید:"
         );
         rules.setTextSize(16);
@@ -89,8 +101,23 @@ public class MainActivity extends Activity {
         badTest.setOnClickListener(v -> playTest(getVoiceResource(false)));
         root.addView(badTest);
 
-        Button startOcr = new Button(this);\n        startOcr.setText("فعال‌سازی خواندن تصویری اسنپ (OCR)");\n        startOcr.setOnClickListener(v -> {\n            MediaProjectionManager manager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);\n            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE);\n        });\n        root.addView(startOcr);\n\n        Button stopOcr = new Button(this);\n        stopOcr.setText("توقف خواندن تصویری");\n        stopOcr.setOnClickListener(v -> stopService(new Intent(this, com.snapfloat.voice.SnappScreenOcrService.class)));\n        root.addView(stopOcr);\n\n        TextView diagnosticTitle = new TextView(this);
-        diagnosticTitle.setText("\n\nبخش عیب‌یابی دریافت اطلاعات اسنپ");
+        Button startOcr = new Button(this);
+        startOcr.setText("فعال‌سازی خواندن تصویری اسنپ (OCR)");
+        startOcr.setOnClickListener(v -> {
+            MediaProjectionManager manager = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE);
+        });
+        root.addView(startOcr);
+
+        Button stopOcr = new Button(this);
+        stopOcr.setText("توقف خواندن تصویری");
+        stopOcr.setOnClickListener(v -> stopService(new Intent(this, com.snapfloat.voice.SnappScreenOcrService.class)));
+        root.addView(stopOcr);
+
+        TextView diagnosticTitle = new TextView(this);
+        diagnosticTitle.setText("
+
+بخش عیب‌یابی دریافت اطلاعات اسنپ");
         diagnosticTitle.setTextSize(18);
         root.addView(diagnosticTitle);
 
@@ -147,9 +174,16 @@ public class MainActivity extends Activity {
         String lastEvent = prefs.getString("last_event", "");
         String status = enabled ? "وضعیت پایش: روشن" : "وضعیت پایش: خاموش";
         if (capture.isEmpty()) {
-            diagnosticReport.setText(status + "\n\nهنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.\n\nآخرین رویداد:\n" + lastEvent);
+            diagnosticReport.setText(status + "
+
+هنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.
+
+آخرین رویداد:
+" + lastEvent);
         } else {
-            diagnosticReport.setText(status + "\n\n" + capture);
+            diagnosticReport.setText(status + "
+
+" + capture);
         }
     }
 
