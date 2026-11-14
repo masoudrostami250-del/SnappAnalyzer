@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />\n    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />\n    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <queries>
         <intent>
@@ -8,7 +8,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Snapp Voice Diagnostic 17000 + Pickup 2km"
+        android:label="تحلیل صوتی اسنپ با OCR 17000"
         android:allowBackup="false"
         android:supportsRtl="true">
 
@@ -34,5 +34,5 @@
                 android:resource="@xml/accessibility_service_config"/>
         </service>
 
-    </application>
+    <service android:name=".voice.SnappScreenOcrService" android:exported="false" android:foregroundServiceType="mediaProjection" />\n    </application>
 </manifest>
