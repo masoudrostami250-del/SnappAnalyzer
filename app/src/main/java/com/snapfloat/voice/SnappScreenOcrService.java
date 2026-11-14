@@ -124,7 +124,12 @@ public class SnappScreenOcrService extends Service {
   private Long findFare(String s){
     ArrayList<Long> vals=new ArrayList<>();
     Matcher m=Pattern.compile("([0-9][0-9,\\. ]{2,})\\s*(?:تومان|تومن|ریال)").matcher(s);
-    while(m.find())try{long n=Long.parseLong(m.group(1).replaceAll("[,. ]",""));if(n>0&&n<1000000000L)vals.add(n);}catch(Exception ignored){}
+    while(m.find())try{long n=Long.parseLong(m.group(1).replaceAll("[,. ]",""));if(n>=1000&&n<1000000000L)vals.add(n);}catch(Exception ignored){}
+    if(!vals.isEmpty()) return Collections.max(vals);
+    // Latin OCR may recognize the fare digits but miss Persian currency letters.
+    // Fallback only to a clearly fare-sized number; never use small address numbers.
+    Matcher numeric=Pattern.compile("(?<![0-9])([0-9][0-9,]{3,})(?![0-9])").matcher(s);
+    while(numeric.find()) try{long n=Long.parseLong(numeric.group(1).replace(",",""));if(n>=10000&&n<=10000000L)vals.add(n);}catch(Exception ignored){}
     return vals.isEmpty()?null:Collections.max(vals);
   }
   private void play(boolean go){
