@@ -36,19 +36,44 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
-        CharSequence packageName = event.getPackageName();
-        if (packageName == null || !SNAPP_PACKAGE.equals(packageName.toString())) {
+
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        String eventPackage = event.getPackageName() == null ? "" : event.getPackageName().toString();
+        String rootPackage = "";
+        if (root != null && root.getPackageName() != null) {
+            rootPackage = root.getPackageName().toString();
+        }
+
+        // Accept only Snapp's own window, but tolerate events whose package is omitted.
+        boolean snappWindow = SNAPP_PACKAGE.equals(eventPackage)
+                || SNAPP_PACKAGE.equals(rootPackage);
+        if (!snappWindow) {
+            if (root != null) root.recycle();
             scheduleOfferReset();
             return;
         }
 
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) {
+        StringBuilder allText = new StringBuilder();
+        if (root != null) {
+            collectText(root, allText);
+            root.recycle();
+        }
+
+        // Some Snapp releases expose changed labels only through the event payload.
+        if (allText.length() == 0 || allText.toString().trim().isEmpty()) {
+            for (CharSequence item : event.getText()) {
+                if (item != null) allText.append(' ').append(item);
+            }
+            if (event.getContentDescription() != null) {
+                allText.append(' ').append(event.getContentDescription());
+            }
+        }
+
+        if (allText.length() == 0) {
             scheduleOfferReset();
             return;
         }
-        StringBuilder allText = new StringBuilder();
-        collectText(root, allText);
+
         analyzeOffer(allText.toString());
     }
 
