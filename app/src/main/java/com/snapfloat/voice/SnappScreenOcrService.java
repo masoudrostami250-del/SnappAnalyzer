@@ -103,6 +103,7 @@ public class SnappScreenOcrService extends Service {
     for(Text.TextBlock block:result.getTextBlocks()) for(Text.Line line:block.getLines()) all.append(' ').append(line.getText());
     String raw=digits(all.toString());
     Long fare=findFare(raw); ArrayList<Double> ds=findDistances(raw);
+    if(ds.size()<2) ds=findDistancesByRows(result);
     getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit().putString("last_ocr_text",raw).apply();
     if(fare==null || ds.size()<2) return;
     double pickup=ds.get(0), destination=ds.get(1);
@@ -120,6 +121,40 @@ public class SnappScreenOcrService extends Service {
     Matcher m=Pattern.compile("([0-9]+(?:[.,][0-9]+)?)\\s*(km|k\\s*m|کیلومتر|کيلومتر)",Pattern.CASE_INSENSITIVE).matcher(s);
     while(m.find()) try{double d=Double.parseDouble(m.group(1).replace(',','.')); if(d>0&&d<=100)out.add(d);}catch(Exception ignored){}
     return out;
+  }
+
+  // Snapp may omit the Persian word "مقصد" and OCR may miss "کیلومتر".
+  // In that layout each trip row contains a minutes value followed by its
+  // distance value (for example: "7 دقیقه تا مبدا - 2"). Read the last
+  // number from each of the first two trip-detail rows in the upper screen.
+  private ArrayList<Double> findDistancesByRows(Text result){
+    ArrayList<double[]> rows=new ArrayList<>();
+    for(Text.TextBlock block:result.getTextBlocks()){
+      for(Text.Line line:block.getLines()){
+        android.graphics.Rect box=line.getBoundingBox();
+        if(box==null || box.centerY()<height*0.06f || box.centerY()>height*0.62f) continue;
+        String lineText=digits(line.getText());
+        Matcher nums=Pattern.compile("(?<![0-9])([0-9]+(?:[.,][0-9]+)?)(?![0-9])").matcher(lineText);
+        ArrayList<Double> values=new ArrayList<>();
+        while(nums.find()){
+          try{ double v=Double.parseDouble(nums.group(1).replace(',','.')); if(v>0&&v<=100) values.add(v); }catch(Exception ignored){}
+        }
+        if(values.size()>=2){
+          double distance=values.get(values.size()-1);
+          rows.add(new double[]{box.centerY(),distance});
+        }
+      }
+    }
+    Collections.sort(rows,(a,b)->Double.compare(a[0],b[0]));
+    ArrayList<Double> out=new ArrayList<>();
+    for(double[] row:rows){
+      if(out.isEmpty() || Math.abs(row[0]-lastRowY(rows,out.size()))>height*0.025f) out.add(row[1]);
+      if(out.size()==2) break;
+    }
+    return out;
+  }
+  private double lastRowY(ArrayList<double[]> rows,int count){
+    return count<=0? -100000 : rows.get(Math.min(count-1,rows.size()-1))[0];
   }
   private Long findFare(String s){
     ArrayList<Long> vals=new ArrayList<>();
