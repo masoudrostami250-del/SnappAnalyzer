@@ -37,24 +37,14 @@ public class MainActivity extends Activity {
 
         TextView rules = new TextView(this);
         rules.setText(
-                "قانون برنامه:
-" +
-                "• مبدأ تا ۲ کیلومتر و مقصد حداقل ۱۷ هزار تومان برای هر کیلومتر: «برو»
-" +
-                "• مبدأ بیشتر از ۲ کیلومتر: «نرو»
-" +
-                "• مقصد کمتر از ۱۷ هزار تومان برای هر کیلومتر: «نرو»
-
-" +
-                "محاسبه نرخ فقط با مسافت مقصد انجام می‌شود؛ مسافت مبدأ به نرخ مقصد اضافه نمی‌شود.
-" +
-                "اگر فاصله مبدأ و مقصد هر دو قابل تشخیص نباشند، برنامه سفر را تأیید نمی‌کند.
-" +
-                "برای هر پیشنهاد سفر فقط یک بار صدا پخش می‌شود.
-" +
-                "صداها داخل برنامه ذخیره شده‌اند و برای پخش به اینترنت نیاز ندارند.
-
-" +
+                "قانون برنامه:\n" +
+                "• مبدأ تا ۲ کیلومتر و مقصد حداقل ۱۷ هزار تومان برای هر کیلومتر: «برو»\n" +
+                "• مبدأ بیشتر از ۲ کیلومتر: «نرو»\n" +
+                "• مقصد کمتر از ۱۷ هزار تومان برای هر کیلومتر: «نرو»\n\n" +
+                "محاسبه نرخ فقط با مسافت مقصد انجام می‌شود؛ مسافت مبدأ به نرخ مقصد اضافه نمی‌شود.\n" +
+                "اگر فاصله مبدأ و مقصد هر دو قابل تشخیص نباشند، برنامه سفر را تأیید نمی‌کند.\n" +
+                "برای هر پیشنهاد سفر فقط یک بار صدا پخش می‌شود.\n" +
+                "صداها داخل برنامه ذخیره شده‌اند و برای پخش به اینترنت نیاز ندارند.\n\n" +
                 "صدای موردنظر را انتخاب کنید:"
         );
         rules.setTextSize(16);
@@ -115,9 +105,7 @@ public class MainActivity extends Activity {
         root.addView(stopOcr);
 
         TextView diagnosticTitle = new TextView(this);
-        diagnosticTitle.setText("
-
-بخش عیب‌یابی دریافت اطلاعات اسنپ");
+        diagnosticTitle.setText("\n\nبخش عیب‌یابی دریافت اطلاعات اسنپ");
         diagnosticTitle.setTextSize(18);
         root.addView(diagnosticTitle);
 
@@ -174,16 +162,9 @@ public class MainActivity extends Activity {
         String lastEvent = prefs.getString("last_event", "");
         String status = enabled ? "وضعیت پایش: روشن" : "وضعیت پایش: خاموش";
         if (capture.isEmpty()) {
-            diagnosticReport.setText(status + "
-
-هنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.
-
-آخرین رویداد:
-" + lastEvent);
+            diagnosticReport.setText(status + "\n\nهنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.\n\nآخرین رویداد:\n" + lastEvent);
         } else {
-            diagnosticReport.setText(status + "
-
-" + capture);
+            diagnosticReport.setText(status + "\n\n" + capture);
         }
     }
 
