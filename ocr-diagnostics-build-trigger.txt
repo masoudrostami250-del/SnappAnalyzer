@@ -1,0 +1,1 @@
+Build OCR diagnostics branch after workflow registration.
