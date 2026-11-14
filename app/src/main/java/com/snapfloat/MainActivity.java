@@ -16,7 +16,7 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
     private static final String PREFS = "voice_settings";
     private static final String VOICE_KEY = "selected_voice";
-    private MediaPlayer testPlayer;
+    private MediaPlayer testPlayer;\n    private TextView diagnosticReport;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,7 +87,66 @@ public class MainActivity extends Activity {
         badTest.setOnClickListener(v -> playTest(getVoiceResource(false)));
         root.addView(badTest);
 
+        TextView diagnosticTitle = new TextView(this);
+        diagnosticTitle.setText("\\n\\nبخش عیب‌یابی دریافت اطلاعات اسنپ");
+        diagnosticTitle.setTextSize(18);
+        root.addView(diagnosticTitle);
+
+        TextView diagnosticHelp = new TextView(this);
+        diagnosticHelp.setText("برای بررسی مشکل، پایش را شروع کنید؛ سپس وارد اسنپ شوید، جزئیات یک پیشنهاد را باز کنید و به این صفحه برگردید. گزارش فقط برای بررسی همین مشکل در گوشی ذخیره می‌شود.");
+        diagnosticHelp.setTextSize(14);
+        root.addView(diagnosticHelp);
+
+        Button startDiagnostic = new Button(this);
+        startDiagnostic.setText("شروع پایش عیب‌یابی");
+        startDiagnostic.setOnClickListener(v -> {
+            getSharedPreferences("voice_diagnostics", MODE_PRIVATE).edit()
+                    .putBoolean("enabled", true).apply();
+            Toast.makeText(this, "پایش فعال شد؛ وارد اسنپ شوید", Toast.LENGTH_LONG).show();
+            refreshDiagnosticReport();
+        });
+        root.addView(startDiagnostic);
+
+        Button stopDiagnostic = new Button(this);
+        stopDiagnostic.setText("توقف پایش");
+        stopDiagnostic.setOnClickListener(v -> {
+            getSharedPreferences("voice_diagnostics", MODE_PRIVATE).edit()
+                    .putBoolean("enabled", false).apply();
+            refreshDiagnosticReport();
+        });
+        root.addView(stopDiagnostic);
+
+        Button refreshDiagnostic = new Button(this);
+        refreshDiagnostic.setText("نمایش گزارش ثبت‌شده");
+        refreshDiagnostic.setOnClickListener(v -> refreshDiagnosticReport());
+        root.addView(refreshDiagnostic);
+
+        diagnosticReport = new TextView(this);
+        diagnosticReport.setTextSize(13);
+        root.addView(diagnosticReport);
+        refreshDiagnosticReport();
+
         setContentView(root);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        refreshDiagnosticReport();
+    }
+
+    private void refreshDiagnosticReport() {
+        if (diagnosticReport == null) return;
+        SharedPreferences prefs = getSharedPreferences("voice_diagnostics", MODE_PRIVATE);
+        boolean enabled = prefs.getBoolean("enabled", false);
+        String capture = prefs.getString("last_snapp_capture", "");
+        String lastEvent = prefs.getString("last_event", "");
+        String status = enabled ? "وضعیت پایش: روشن" : "وضعیت پایش: خاموش";
+        if (capture.isEmpty()) {
+            diagnosticReport.setText(status + "\\n\\nهنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.\\n\\nآخرین رویداد:\\n" + lastEvent);
+        } else {
+            diagnosticReport.setText(status + "\\n\\n" + capture);
+        }
     }
 
     private SharedPreferences getPreferences() {
