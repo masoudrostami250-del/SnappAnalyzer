@@ -194,14 +194,31 @@ public class MainActivity extends Activity {
         if (diagnosticReport == null) return;
         SharedPreferences prefs = getSharedPreferences("voice_diagnostics", MODE_PRIVATE);
         boolean enabled = prefs.getBoolean("enabled", false);
+        boolean ocrRunning = prefs.getBoolean("ocr_running", false);
         String capture = prefs.getString("last_snapp_capture", "");
         String lastEvent = prefs.getString("last_event", "");
-        String status = enabled ? "وضعیت پایش: روشن" : "وضعیت پایش: خاموش";
-        if (capture.isEmpty()) {
-            diagnosticReport.setText(status + "\n\nهنوز متن پنجره اسنپ ثبت نشده است. ابتدا پایش را روشن کنید و یک پیشنهاد سفر را باز کنید.\n\nآخرین رویداد:\n" + lastEvent);
-        } else {
-            diagnosticReport.setText(status + "\n\n" + capture);
-        }
+        String ocrStatus = prefs.getString("ocr_status", "هنوز گزارشی از OCR ثبت نشده");
+        String raw = prefs.getString("last_ocr_text", "");
+        String fare = prefs.getString("last_fare", "—");
+        String distances = prefs.getString("last_distances", "—");
+        String decision = prefs.getString("last_decision", "—");
+        String rate = prefs.getString("last_rate", "—");
+        long time = prefs.getLong("last_ocr_time", 0L);
+        String when = time == 0 ? "—" : android.text.format.DateFormat.format("yyyy/MM/dd  HH:mm:ss", time).toString();
+        String status = enabled ? "وضعیت پایش رویداد: روشن" : "وضعیت پایش رویداد: خاموش";
+        diagnosticReport.setText(
+                status +
+                "\nوضعیت OCR: " + (ocrRunning ? "فعال" : "غیرفعال") +
+                "\nنتیجه آخرین بررسی: " + ocrStatus +
+                "\nزمان آخرین خواندن: " + when +
+                "\nمبلغ تشخیص‌داده‌شده: " + fare +
+                "\nمسافت‌های تشخیص‌داده‌شده: " + distances +
+                "\nنرخ مقصد: " + rate +
+                "\nتصمیم: " + decision +
+                "\n\nمتن خام خوانده‌شده از صفحه:\n" + (raw.isEmpty() ? "هنوز متنی خوانده نشده" : raw) +
+                "\n\nگزارش پنجره اسنپ:\n" + (capture.isEmpty() ? "ثبت نشده" : capture) +
+                "\n\nآخرین رویداد دسترسی‌پذیری:\n" + (lastEvent.isEmpty() ? "ثبت نشده" : lastEvent)
+        );
     }
 
     private SharedPreferences getPreferences() {
