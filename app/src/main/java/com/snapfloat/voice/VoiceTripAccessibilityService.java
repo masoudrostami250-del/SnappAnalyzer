@@ -1,7 +1,6 @@
 package com.snapfloat.voice;
 
 import android.accessibilityservice.AccessibilityService;
-import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
@@ -281,10 +280,9 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 Log.e(TAG, "Could not create female audio player for " + phrase);
                 return;
             }
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build());
+            // MediaPlayer.create() returns a prepared player. Do not change
+            // its audio attributes after preparation; use the normal media route.
+            player.setVolume(1.0f, 1.0f);
             player.setOnCompletionListener(mp -> releasePlayer());
             player.setOnErrorListener((mp, what, extra) -> {
                 Log.e(TAG, "Audio playback error what=" + what + " extra=" + extra);
