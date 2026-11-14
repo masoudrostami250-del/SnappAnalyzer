@@ -1,0 +1,1 @@
+Snapp voice analyzer resilient v2 source revision. See VoiceTripAccessibilityService.java.
