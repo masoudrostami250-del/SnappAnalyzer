@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - voice-17000-pickup-2km-snapp-update-resilient-v1
+      - voice-17000-pickup-2km-snapp-update-resilient-v2
   workflow_dispatch:
 
 jobs:
