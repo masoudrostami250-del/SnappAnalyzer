@@ -81,7 +81,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                         return;
                     }
                 }
-            } else if (snapshotHasPickupMarker) {
+            } else if (snapshotHasPickupMarker && freshOcr) {
                 combined = combined + " " + ocr;
             }
         } catch (Exception e) {
@@ -201,6 +201,28 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             if (current.isEmpty()) {
                 saveDiagnostic("پنجره اسنپ شناسایی شد اما متن قابل‌خواندن خالی است.");
                 scheduleOfferReset();
+                return;
+            }
+
+            // Clear retained offer text whenever neither the live Snapp tree nor
+            // a very recent OCR frame shows the pickup countdown of an active offer.
+            boolean livePickupMarker = hasPickupOfferMarker(current);
+            boolean freshOcrPickupMarker = false;
+            try {
+                android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
+                String latestOcr = prefs.getString("screen_ocr_text", "");
+                long latestOcrAt = prefs.getLong("screen_ocr_time", 0L);
+                freshOcrPickupMarker = !latestOcr.isEmpty()
+                        && System.currentTimeMillis() - latestOcrAt <= 1200L
+                        && hasPickupOfferMarker(latestOcr);
+            } catch (Exception ignored) { }
+            if (!livePickupMarker && !freshOcrPickupMarker) {
+                pendingEventText.setLength(0);
+                handler.removeCallbacks(analyzePending);
+                analysisRetries = 0;
+                lastOcrOfferSignature = "";
+                lastOcrOfferCaptureTime = 0L;
+                saveDiagnostic("پیشنهاد سفری فعال نیست؛ برنامه سکوت کرد.");
                 return;
             }
 
