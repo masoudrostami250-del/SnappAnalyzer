@@ -28,7 +28,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
     private static final double MAX_PICKUP_KM = 2.0;
-    private static final long ANALYZE_DELAY_MS = 250L;
+    private static final long ANALYZE_DELAY_MS = 200L;
     private static final long RESET_DELAY_MS = 7000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -70,7 +70,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         } else if (analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); }
     };
     private void scheduleAnalyzeRetry() {
-        handler.postDelayed(analyzePending, 250L);
+        handler.postDelayed(analyzePending, 200L);
     }
 
     private final Runnable resetOffer = () -> {
