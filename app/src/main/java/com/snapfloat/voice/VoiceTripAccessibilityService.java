@@ -5,6 +5,9 @@ import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.graphics.Rect;
+import java.util.Collections;
+import java.util.Comparator;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
@@ -45,6 +48,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     protected void onServiceConnected() {
         super.onServiceConnected();
         Log.i(TAG, "Female Persian offline audio service connected");
+        saveDiagnostic("سرویس دسترسی‌پذیری متصل شد؛ منتظر صفحه اسنپ");
     }
 
     @Override
@@ -57,6 +61,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             String eventPackage = event.getPackageName() == null ? "" : event.getPackageName().toString();
             String rootPackage = root != null && root.getPackageName() != null
                     ? root.getPackageName().toString() : "";
+            saveDiagnostic("رویداد دریافت شد | eventPackage=" + eventPackage + " | rootPackage=" + rootPackage + " | root=" + (root != null));
 
             boolean snappWindow = SNAPP_PACKAGE.equals(eventPackage) || SNAPP_PACKAGE.equals(rootPackage);
             if (!snappWindow) {
@@ -83,6 +88,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
             String current = collected.toString().trim();
             if (current.isEmpty()) {
+                saveDiagnostic("پنجره اسنپ شناسایی شد اما متن قابل‌خواندن خالی است.");
                 scheduleOfferReset();
                 return;
             }
@@ -95,6 +101,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             }
             lastWindowSignature = signature;
 
+            saveDiagnostic("متن صفحه اسنپ دریافت شد:\n" + current.substring(0, Math.min(current.length(), 3500)));
             String normalizedCurrent = normalizeDigits(current);
             boolean completeSnapshot = findFare(normalizedCurrent) != null
                     && findDistances(normalizedCurrent).size() >= 2;
@@ -123,18 +130,35 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         }
     }
 
+
+    private static class PositionedText {
+        final int top;
+        final String value;
+        PositionedText(int top, String value) { this.top = top; this.value = value; }
+    }
+
     private void collectText(AccessibilityNodeInfo node, StringBuilder out) {
         if (node == null) return;
-        try {
-            CharSequence text = node.getText();
-            if (text != null && text.length() > 0) out.append(' ').append(text);
-            CharSequence description = node.getContentDescription();
-            if (description != null && description.length() > 0) out.append(' ').append(description);
+        ArrayList<PositionedText> items = new ArrayList<>();
+        collectPositioned(node, items);
+        Collections.sort(items, Comparator.comparingInt(a -> a.top));
+        for (PositionedText item : items) out.append(' ').append(item.value);
+    }
 
+    private void collectPositioned(AccessibilityNodeInfo node, ArrayList<PositionedText> out) {
+        if (node == null) return;
+        try {
+            Rect bounds = new Rect();
+            node.getBoundsInScreen(bounds);
+            int top = bounds.top;
+            CharSequence value = node.getText();
+            if (value != null && value.length() > 0) out.add(new PositionedText(top, value.toString()));
+            CharSequence desc = node.getContentDescription();
+            if (desc != null && desc.length() > 0) out.add(new PositionedText(top, desc.toString()));
             for (int i = 0; i < node.getChildCount(); i++) {
                 AccessibilityNodeInfo child = node.getChild(i);
                 if (child != null) {
-                    try { collectText(child, out); }
+                    try { collectPositioned(child, out); }
                     finally { try { child.recycle(); } catch (Exception ignored) { } }
                 }
             }
@@ -143,16 +167,25 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         }
     }
 
+    private void saveDiagnostic(String report) {
+        try {
+            getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
+                    .putString("last_accessibility_report", report).apply();
+        } catch (Exception ignored) { }
+    }
+
     private void analyzeOffer(String raw) {
         String text = normalizeDigits(raw).toLowerCase(Locale.ROOT);
         Long fare = findFare(text);
         if (fare == null || fare <= 0) {
+            saveDiagnostic("متن دریافت شد اما مبلغ کرایه تشخیص داده نشد. متن:\n" + raw.substring(0, Math.min(raw.length(), 3500)));
             scheduleOfferReset();
             return;
         }
 
         ArrayList<Double> distances = findDistances(text);
         if (distances.size() < 2) {
+            saveDiagnostic("مبلغ پیدا شد (" + fare + ") اما دو فاصله کیلومتری پیدا نشد. فاصله‌های پیدا‌شده=" + distances + "\nمتن:\n" + raw.substring(0, Math.min(raw.length(), 3500)));
             // Do not guess when the pickup and destination cannot both be identified.
             scheduleOfferReset();
             return;
@@ -180,6 +213,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         lastSpokenKey = key;
         handler.removeCallbacks(resetOffer);
+        saveDiagnostic("تحلیل کامل شد: " + phrase + " | کرایه=" + fare + " | فاصله بالایی/مبدأ=" + pickupKm + " | فاصله پایینی/مقصد=" + destinationKm + " | نرخ مقصد=" + tomanPerKm + " تومان/کیلومتر");
         Log.i(TAG, "VOICE_RESULT=" + phrase + " pickupKm=" + pickupKm
                 + " destinationKm=" + destinationKm + " fare=" + fare
                 + " tomanPerKm=" + tomanPerKm + " pickupAllowed=" + pickupAllowed
