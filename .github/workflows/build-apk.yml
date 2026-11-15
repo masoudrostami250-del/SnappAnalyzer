@@ -10,6 +10,7 @@ on:
       - voice-17000-pickup2km-diagnostic-v2
       - voice-17000-pickup2km-diagnostic-v3
       - voice-17000-pickup2km-multiwindow-v4
+      - voice-17000-pickup2km-node-dump-v5
   workflow_dispatch:
 
 jobs:
