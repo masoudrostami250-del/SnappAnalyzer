@@ -33,6 +33,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final StringBuilder pendingEventText = new StringBuilder();
     private String lastSpokenKey = "";
+    private long lastSpokenAtMs = 0L;
+    private static final long SAME_TRIP_DEDUPE_MS = 120000L;
     private String lastWindowSignature = "";
     private String lastOfferIdentity = "";
     private String pendingPickupAddress = "";
@@ -53,7 +55,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
             String ocr = prefs.getString("screen_ocr_text", "");
             long capturedAt = prefs.getLong("screen_ocr_time", 0L);
-            if (!ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 2000L
+            if (!ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 6000L
                     && findDistances(normalizeDigits(combined)).size() < 2) {
                 combined = combined + " " + ocr;
             }
@@ -75,7 +77,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     }
 
     private final Runnable resetOffer = () -> {
-        lastSpokenKey = "";
+        // Keep the last spoken trip key across temporary app/window focus changes.
         pendingEventText.setLength(0);
         lastWindowSignature = "";
         lastOfferIdentity = "";
@@ -174,7 +176,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                     && !lastWindowSignature.contains(signature)) {
                 pendingEventText.setLength(0);
                 lastOfferIdentity = "";
-                lastSpokenKey = "";
+                // A layout/text refresh is not proof of a new trip; keep speech deduplication.
                 pendingPickupAddress = "";
                 pendingDestinationAddress = "";
                 routeAnalysisInProgress = false;
@@ -192,7 +194,6 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                         + "|" + currentDestinationAddress.trim();
                 if (!lastOfferIdentity.isEmpty() && !lastOfferIdentity.equals(identity)) {
                     pendingEventText.setLength(0);
-                    lastSpokenKey = "";
                     routeAnalysisInProgress = false;
                     lastRouteRequestKey = "";
                     analysisGeneration++;
@@ -497,11 +498,17 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         boolean fareAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
         String phrase = pickupAllowed && fareAllowed ? "برو" : "نرو";
 
-        String key = fare + "|" + Math.round(pickupKm * 1000.0)
-                + "|" + Math.round(destinationKm * 1000.0);
-        if (key.equals(lastSpokenKey)) return;
+        // Round distances to 0.1 km so minor OCR fluctuations do not re-announce one offer.
+        String key = fare + "|" + Math.round(pickupKm * 10.0)
+                + "|" + Math.round(destinationKm * 10.0);
+        long now = System.currentTimeMillis();
+        if (key.equals(lastSpokenKey) && now - lastSpokenAtMs < SAME_TRIP_DEDUPE_MS) {
+            Log.i(TAG, "DUPLICATE_TRIP_SUPPRESSED key=" + key);
+            return;
+        }
 
         lastSpokenKey = key;
+        lastSpokenAtMs = now;
         handler.removeCallbacks(resetOffer);
         saveDiagnostic("تحلیل کامل شد: " + phrase + " | روش=" + source + " | کرایه=" + fare
                 + " | فاصله مبدأ/راننده=" + pickupKm + " کیلومتر"
