@@ -108,6 +108,25 @@ public class MainActivity extends Activity {
         });
         root.addView(diagnostic);
 
+        Button structureDiagnostic = new Button(this);
+        structureDiagnostic.setText("گزارش ساختار عناصر صفحه اسنپ");
+        structureDiagnostic.setOnClickListener(v -> {
+            String report = getPreferences().getString("last_snapp_structure",
+                    "هنوز گزارش ساختار ثبت نشده است. اسنپ را باز کنید، یک پیشنهاد سفر را روی صفحه بیاورید و چند ثانیه صبر کنید؛ سپس این دکمه را بزنید.");
+            new AlertDialog.Builder(this)
+                    .setTitle("گزارش ساختار عناصر اسنپ")
+                    .setMessage(report)
+                    .setPositiveButton("بستن", null)
+                    .setNeutralButton("کپی گزارش", (dialog, which) -> {
+                        android.content.ClipboardManager clipboard =
+                                (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("ساختار عناصر اسنپ", report));
+                        Toast.makeText(this, "گزارش ساختار کپی شد", Toast.LENGTH_SHORT).show();
+                    })
+                    .show();
+        });
+        root.addView(structureDiagnostic);
+
         setContentView(root);
     }
 
