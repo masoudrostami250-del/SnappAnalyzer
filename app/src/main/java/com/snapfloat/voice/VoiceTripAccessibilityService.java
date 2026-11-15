@@ -100,7 +100,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             if (root != null) dumpNodeStructure(root, nodeDump, nodeCount);
             dumpSnappWindowStructures(nodeDump, nodeCount);
             if (nodeDump.length() > 0) {
-                saveDiagnostic("گزارش ساختار عناصر صفحه اسنپ (حداکثر 250 عنصر):\\n"
+                saveStructureDiagnostic("گزارش ساختار عناصر صفحه اسنپ (حداکثر 250 عنصر):\\n"
                         + nodeDump.substring(0, Math.min(nodeDump.length(), 14000)));
             }
 
@@ -286,6 +286,15 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         } catch (Exception e) {
             Log.w(TAG, "A view changed while its text was being read", e);
         }
+    }
+
+
+    private void saveStructureDiagnostic(String report) {
+        try {
+            getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
+                    .putString("last_snapp_structure", report)
+                    .apply();
+        } catch (Exception ignored) { }
     }
 
     private void saveDiagnostic(String report) {
