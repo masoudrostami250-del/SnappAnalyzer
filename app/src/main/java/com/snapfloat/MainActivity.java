@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
+import android.media.projection.MediaProjectionManager;
+import com.snapfloat.voice.ScreenCaptureOcrService;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,6 +27,7 @@ public class MainActivity extends Activity {
     private static final String VOICE_KEY = "selected_voice";
     private static final int REQUEST_FOREGROUND_LOCATION = 701;
     private static final int REQUEST_BACKGROUND_LOCATION = 702;
+    private static final int REQUEST_SCREEN_CAPTURE = 903;
     private MediaPlayer testPlayer;
 
     @Override
@@ -115,6 +118,30 @@ public class MainActivity extends Activity {
         });
         root.addView(structureDiagnostic);
 
+        Button startOcr = new Button(this);
+        startOcr.setText("فعال‌سازی خواندن تصویری کیلومترها");
+        startOcr.setOnClickListener(v -> {
+            MediaProjectionManager manager = (MediaProjectionManager)
+                    getSystemService(MEDIA_PROJECTION_SERVICE);
+            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE);
+        });
+        root.addView(startOcr);
+
+        Button stopOcr = new Button(this);
+        stopOcr.setText("توقف خواندن تصویری صفحه");
+        stopOcr.setOnClickListener(v -> {
+            Intent stop = new Intent(this, ScreenCaptureOcrService.class);
+            stop.setAction(ScreenCaptureOcrService.ACTION_STOP);
+            startService(stop);
+            Toast.makeText(this, "درخواست توقف خواندن تصویری ارسال شد.", Toast.LENGTH_SHORT).show();
+        });
+        root.addView(stopOcr);
+
+        TextView captureInfo = new TextView(this);
+        captureInfo.setText("برای خواندن کیلومترهایی که اسنپ در متن دسترس‌پذیری نشان نمی‌دهد، این گزینه را فعال کنید و اجازه ضبط صفحه را بدهید. تصویر صفحه ذخیره یا ارسال نمی‌شود؛ فقط متن به‌صورت محلی استخراج می‌شود. GPS و نقشه استفاده نمی‌شود.");
+        captureInfo.setTextSize(14);
+        root.addView(captureInfo);
+
         TextView attribution = new TextView(this);
         attribution.setText(
                 "\nمنابع نقشه: داده‌های OpenStreetMap، جست‌وجوی Nominatim و مسیریابی OSRM. " +
@@ -125,6 +152,23 @@ public class MainActivity extends Activity {
         root.addView(attribution);
 
         setContentView(root);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SCREEN_CAPTURE) {
+            if (resultCode == RESULT_OK && data != null) {
+                Intent capture = new Intent(this, ScreenCaptureOcrService.class);
+                capture.putExtra(ScreenCaptureOcrService.EXTRA_RESULT_CODE, resultCode);
+                capture.putExtra(ScreenCaptureOcrService.EXTRA_RESULT_DATA, data);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(capture);
+                else startService(capture);
+                Toast.makeText(this, "خواندن تصویری صفحه فعال شد.", Toast.LENGTH_LONG).show();
+            } else {
+                Toast.makeText(this, "مجوز ضبط صفحه داده نشد؛ خواندن تصویری فعال نشد.", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void requestLocationAccess() {
