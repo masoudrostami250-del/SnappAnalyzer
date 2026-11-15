@@ -63,7 +63,7 @@ public class ScreenCaptureOcrService extends Service {
             copyAssetIfMissing("tessdata/eng.traineddata", new File(tessdata, "eng.traineddata"));
             recognizer = new TessBaseAPI();
             if (!recognizer.init(basePath, "fas+eng")) {
-                recognizer.end();
+                recognizer.recycle();
                 recognizer = null;
                 throw new IllegalStateException("Tesseract fas+eng initialization failed");
             }
@@ -230,7 +230,7 @@ public class ScreenCaptureOcrService extends Service {
             projection = null;
         }
         if (recognizer != null) {
-            try { recognizer.end(); } catch (Exception ignored) { }
+            try { recognizer.recycle(); } catch (Exception ignored) { }
             recognizer = null;
         }
         if (workerThread != null) {
