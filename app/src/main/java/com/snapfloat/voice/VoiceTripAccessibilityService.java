@@ -93,18 +93,26 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             handler.removeCallbacks(resetOffer);
             StringBuilder collected = new StringBuilder();
 
-            // Read the active root, the event source, and every interactive Snapp window.
-            // Some Snapp trip-card elements are exposed in a separate accessibility window.
-            if (root != null) collectText(root, collected);
-            AccessibilityNodeInfo eventSource = null;
-            try {
-                eventSource = event.getSource();
-                if (eventSource != null) collectText(eventSource, collected);
-            } catch (Exception ignored) { }
-            finally {
-                if (eventSource != null) try { eventSource.recycle(); } catch (Exception ignored) { }
+            // Prefer one complete Snapp tree. Reading root + event source + windows
+            // together duplicated the same distance labels and could shift the pair.
+            boolean rootIsSnapp = root != null && root.getPackageName() != null
+                    && SNAPP_PACKAGE.contentEquals(root.getPackageName());
+            if (rootIsSnapp) {
+                collectText(root, collected);
+            } else {
+                collectSnappWindows(collected);
             }
-            collectSnappWindows(collected);
+            // Use the event source only as a fallback when no Snapp window text exists.
+            if (collected.length() == 0) {
+                AccessibilityNodeInfo eventSource = null;
+                try {
+                    eventSource = event.getSource();
+                    if (eventSource != null) collectText(eventSource, collected);
+                } catch (Exception ignored) { }
+                finally {
+                    if (eventSource != null) try { eventSource.recycle(); } catch (Exception ignored) { }
+                }
+            }
 
             // Diagnostic-only branch: capture the actual accessibility node tree
             // so we can tell whether the distance widgets are exposed to Android.
@@ -378,7 +386,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         ArrayList<PositionedText> items = new ArrayList<>();
         collectPositioned(node, items);
         Collections.sort(items, Comparator.comparingInt(a -> a.top));
-        for (PositionedText item : items) out.append(' ').append(item.value);
+        java.util.LinkedHashSet<String> seen = new java.util.LinkedHashSet<>();
+        for (PositionedText item : items) {
+            String unique = item.top + "|" + item.value;
+            if (seen.add(unique)) out.append(' ').append(item.value);
+        }
     }
 
     private void collectPositioned(AccessibilityNodeInfo node, ArrayList<PositionedText> out) {
@@ -433,51 +445,19 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         ArrayList<Double> distances = findDistances(text);
         if (distances.size() < 2) {
-            String pickupAddress = pendingPickupAddress;
-            String destinationAddress = pendingDestinationAddress;
-            if (pickupAddress.isEmpty() || destinationAddress.isEmpty()) {
-                saveDiagnostic("مبلغ پیدا شد (" + fare + ") اما فاصله و هر دو آدرس کامل برای محاسبه مسیر در دسترس نیستند. مبدأ=" 
-                        + pickupAddress + " | مقصد=" + destinationAddress
-                        + "\nمتن:\n" + raw.substring(0, Math.min(raw.length(), 2500)));
-                scheduleOfferReset();
-                return;
-            }
-
-            String routeKey = fare + "|" + pickupAddress + "|" + destinationAddress;
-            if (routeAnalysisInProgress || routeKey.equals(lastRouteRequestKey)) return;
-            routeAnalysisInProgress = true;
-            lastRouteRequestKey = routeKey;
-            final int expectedGeneration = analysisGeneration;
-            saveDiagnostic("مبلغ " + fare + " تومان و آدرس‌های سفر دریافت شد. در حال گرفتن موقعیت GPS و محاسبه فاصله جاده‌ای از نقشه هستم...");
-
-            RouteDistanceClient.calculate(this, pickupAddress, destinationAddress, result -> {
-                routeAnalysisInProgress = false;
-                if (expectedGeneration != analysisGeneration) return;
-                if (!result.success) {
-                    saveDiagnostic("محاسبه مسیر انجام نشد: " + result.message
-                            + "\nمبدأ: " + pickupAddress + "\nمقصد: " + destinationAddress);
-                    scheduleOfferReset();
-                    return;
-                }
-                saveDiagnostic("فاصله‌های نقشه محاسبه شد | مبدأ تا راننده=" + result.pickupKm
-                        + " کیلومتر | مسیر مقصد=" + result.destinationKm + " کیلومتر. در حال بررسی قانون ۱۷ هزار تومان...");
-                completeAnalysis(fare, result.pickupKm, result.destinationKm, "GPS + OpenStreetMap/OSRM");
-            });
-            return;
-        }
-
-        // Snapp may rename or remove the pickup/destination labels.
-        // Always interpret the first (upper) displayed distance as pickup
-        // and the second (lower) displayed distance as destination.
-        double pickupKm = distances.get(0);
-        double destinationKm = distances.get(1);
-
-        if (pickupKm <= 0 || destinationKm <= 0) {
+            saveDiagnostic("مبلغ سفر پیدا شد (" + fare + ") اما دو عدد کیلومتر از صفحه اسنپ خوانده نشد. "
+                    + "این نسخه فقط از دو فاصله نمایش‌داده‌شده در خود اسنپ استفاده می‌کند و GPS یا نقشه ندارد. "
+                    + "فاصله‌های خوانده‌شده=" + distances + "\nمتن صفحه:\n"
+                    + raw.substring(0, Math.min(raw.length(), 3500)));
             scheduleOfferReset();
             return;
         }
 
-        completeAnalysis(fare, pickupKm, destinationKm, "فاصله‌های خوانده‌شده از صفحه اسنپ");
+        // The first (upper) visible distance is driver-to-pickup;
+        // the second (lower) visible distance is pickup-to-destination.
+        double pickupKm = distances.get(0);
+        double destinationKm = distances.get(1);
+        completeAnalysis(fare, pickupKm, destinationKm, "دو کیلومتر خوانده‌شده از صفحه اسنپ");
     }
 
     private void completeAnalysis(long fare, double pickupKm, double destinationKm, String source) {
