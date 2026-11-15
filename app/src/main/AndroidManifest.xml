@@ -1,5 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+
     <queries>
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE"/>
@@ -8,7 +13,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Snapp Voice 17000 + Pickup 2km (Fixed)"
+        android:label="Snapp Voice Route 17000 + Pickup 2km"
         android:allowBackup="false"
         android:supportsRtl="true">
 
