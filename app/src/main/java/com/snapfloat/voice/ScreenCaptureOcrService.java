@@ -22,8 +22,6 @@ import android.util.Log;
 import android.view.WindowManager;
 import android.content.pm.ServiceInfo;
 
-import androidx.annotation.Nullable;
-import androidx.core.app.NotificationCompat;
 
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
@@ -173,12 +171,16 @@ public class ScreenCaptureOcrService extends Service {
     }
 
     private Notification buildNotification() {
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_menu_camera)
+        Notification.Builder builder;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            builder = new Notification.Builder(this, CHANNEL_ID);
+        } else {
+            builder = new Notification.Builder(this);
+        }
+        return builder.setSmallIcon(android.R.drawable.ic_menu_camera)
                 .setContentTitle("خواندن تصویری اسنپ فعال است")
                 .setContentText("برای توقف، برنامه تحلیل‌گر را باز کنید.")
                 .setOngoing(true)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build();
     }
 
@@ -216,7 +218,6 @@ public class ScreenCaptureOcrService extends Service {
         super.onDestroy();
     }
 
-    @Nullable
     @Override
     public IBinder onBind(Intent intent) { return null; }
 }
