@@ -74,3 +74,5 @@ jobs:
           if-no-files-found: error
 
 # Diagnostic branch build enabled; OCR is intentionally not used.
+
+# Trigger a fresh build after fixing the diagnostic Java source.
