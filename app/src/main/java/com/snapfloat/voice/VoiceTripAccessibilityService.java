@@ -64,7 +64,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             if (freshOcr && findDistances(normalizeDigits(snapshot)).size() < 2) combined = snapshot + " " + ocr;
         } catch (Exception e) { Log.w(TAG, "Could not read latest screen OCR text", e); }
         if (!combined.trim().isEmpty()) {
-            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 12) { analysisRetries++; scheduleAnalyzeRetry(); return; }
+            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); return; }
             analysisRetries = 0;
             analyzeOffer(combined);
         } else if (analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); }
