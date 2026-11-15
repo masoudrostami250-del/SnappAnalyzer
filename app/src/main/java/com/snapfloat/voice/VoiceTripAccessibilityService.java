@@ -58,8 +58,13 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             String rootPackage = root != null && root.getPackageName() != null
                     ? root.getPackageName().toString() : "";
 
-            recordDiagnosticEvent(event, root, eventPackage, rootPackage);
             boolean snappWindow = SNAPP_PACKAGE.equals(eventPackage) || SNAPP_PACKAGE.equals(rootPackage);
+            String activePackage = !rootPackage.isEmpty() ? rootPackage : eventPackage;
+            getSharedPreferences("voice_diagnostics", MODE_PRIVATE).edit()
+                    .putString("ocr_capture_package", activePackage)
+                    .putBoolean("snapp_is_foreground", snappWindow)
+                    .apply();
+            recordDiagnosticEvent(event, root, eventPackage, rootPackage);
             if (!snappWindow) {
                 handler.removeCallbacks(analyzePending);
                 scheduleOfferReset();
