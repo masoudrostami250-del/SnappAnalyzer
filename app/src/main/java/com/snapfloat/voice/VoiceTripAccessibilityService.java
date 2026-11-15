@@ -93,6 +93,17 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             }
             collectSnappWindows(collected);
 
+            // Diagnostic-only branch: capture the actual accessibility node tree
+            // so we can tell whether the distance widgets are exposed to Android.
+            StringBuilder nodeDump = new StringBuilder();
+            int[] nodeCount = new int[]{0};
+            if (root != null) dumpNodeStructure(root, nodeDump, nodeCount);
+            dumpSnappWindowStructures(nodeDump, nodeCount);
+            if (nodeDump.length() > 0) {
+                saveDiagnostic("گزارش ساختار عناصر صفحه اسنپ (حداکثر 250 عنصر):\\n"
+                        + nodeDump.substring(0, Math.min(nodeDump.length(), 14000)));
+            }
+
             if (event.getText() != null) {
                 for (CharSequence item : event.getText()) {
                     if (item != null && item.length() > 0) collected.append(' ').append(item);
@@ -170,6 +181,74 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             }
         } catch (Exception e) {
             Log.w(TAG, "Could not enumerate interactive windows", e);
+        }
+    }
+
+
+    private void dumpSnappWindowStructures(StringBuilder out, int[] count) {
+        List<AccessibilityWindowInfo> windows = null;
+        try {
+            windows = getWindows();
+            if (windows == null) return;
+            for (AccessibilityWindowInfo window : windows) {
+                if (window == null || count[0] >= 250) continue;
+                AccessibilityNodeInfo windowRoot = null;
+                try {
+                    windowRoot = window.getRoot();
+                    if (windowRoot == null) continue;
+                    CharSequence pkg = windowRoot.getPackageName();
+                    if (pkg != null && SNAPP_PACKAGE.contentEquals(pkg)) {
+                        out.append("\\n--- SNAPP WINDOW ---\\n");
+                        dumpNodeStructure(windowRoot, out, count);
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "Could not dump Snapp window nodes", e);
+                } finally {
+                    if (windowRoot != null) try { windowRoot.recycle(); } catch (Exception ignored) { }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not enumerate windows for node dump", e);
+        }
+    }
+
+    private void dumpNodeStructure(AccessibilityNodeInfo node, StringBuilder out, int[] count) {
+        if (node == null || count[0] >= 250 || out.length() >= 14000) return;
+        try {
+            count[0]++;
+            Rect bounds = new Rect();
+            node.getBoundsInScreen(bounds);
+            CharSequence cls = node.getClassName();
+            CharSequence pkg = node.getPackageName();
+            CharSequence text = node.getText();
+            CharSequence desc = node.getContentDescription();
+            String viewId = "";
+            try {
+                String id = node.getViewIdResourceName();
+                if (id != null) viewId = id;
+            } catch (Exception ignored) { }
+            out.append("#").append(count[0])
+                    .append(" class=").append(cls == null ? "" : cls)
+                    .append(" id=").append(viewId)
+                    .append(" text=").append(text == null ? "" : text)
+                    .append(" desc=").append(desc == null ? "" : desc)
+                    .append(" bounds=").append(bounds.flattenToString())
+                    .append(" children=").append(node.getChildCount())
+                    .append(" click=").append(node.isClickable())
+                    .append(" focus=").append(node.isFocusable())
+                    .append(" visible=").append(node.isVisibleToUser())
+                    .append(" pkg=").append(pkg == null ? "" : pkg)
+                    .append('\\n');
+            for (int i = 0; i < node.getChildCount(); i++) {
+                if (count[0] >= 250 || out.length() >= 14000) break;
+                AccessibilityNodeInfo child = node.getChild(i);
+                if (child != null) {
+                    try { dumpNodeStructure(child, out, count); }
+                    finally { try { child.recycle(); } catch (Exception ignored) { } }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "A node changed during diagnostic dump", e);
         }
     }
 
