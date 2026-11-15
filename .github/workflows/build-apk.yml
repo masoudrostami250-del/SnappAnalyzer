@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - voice-17000-pickup2km-diagnostic-v2
       - voice-per-km-16000-v1
   workflow_dispatch:
 
