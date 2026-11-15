@@ -1,4 +1,4 @@
-name: Build Snapp Voice Persian OCR 17000 Pickup 2km v14 Fast Voice 3s - build
+name: Build Snapp Voice Persian OCR 17000 Pickup 2km v15 Once Per Trip
 
 on:
   push:
@@ -20,6 +20,7 @@ on:
       - voice-17000-pickup2km-persian-ocr-v12
       - voice-17000-pickup2km-persian-ocr-fast-voice-v13
       - voice-17000-pickup2km-persian-ocr-fast-voice-3sec-v14
+      - voice-17000-pickup2km-persian-ocr-once-per-trip-v15
   workflow_dispatch:
 
 jobs:
@@ -87,7 +88,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SnappVoice17000Pickup2km-FastVoice-3sec-v14
+          name: SnappVoice17000Pickup2km-OncePerTrip-v15
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
