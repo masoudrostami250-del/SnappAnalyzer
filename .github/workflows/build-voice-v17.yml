@@ -3,7 +3,7 @@ name: Build Snapp Voice v17 Silent Without Offer
 on:
   push:
     branches:
-      - voice-17000-pickup2km-silence-without-offer-v17
+      - voice-17000-pickup2km-accept-button-ocr-v17
   workflow_dispatch:
 
 jobs:
