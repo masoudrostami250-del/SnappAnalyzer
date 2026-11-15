@@ -81,20 +81,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        Button locationPermission = new Button(this);
-        locationPermission.setText("فعال‌سازی موقعیت مکانی دقیق و همیشه فعال");
-        locationPermission.setOnClickListener(v -> requestLocationAccess());
-        root.addView(locationPermission);
-
-        TextView permissionStatus = new TextView(this);
-        permissionStatus.setText(getLocationPermissionStatus());
-        root.addView(permissionStatus);
-
-        Button mapSettings = new Button(this);
-        mapSettings.setText("تنظیم نشانی سرویس‌های نقشه");
-        mapSettings.setOnClickListener(v -> showMapServiceSettings());
-        root.addView(mapSettings);
-
         Button accessibility = new Button(this);
         accessibility.setText("فعال کردن دسترسی‌پذیری");
         accessibility.setOnClickListener(v ->
