@@ -12,6 +12,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 import java.util.List;
+import java.util.LinkedHashSet;
 
 import com.snapfloat.R;
 
@@ -32,6 +33,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private final StringBuilder pendingEventText = new StringBuilder();
     private String lastSpokenKey = "";
     private String lastWindowSignature = "";
+    private String pendingPickupAddress = "";
+    private String pendingDestinationAddress = "";
+    private boolean routeAnalysisInProgress = false;
+    private String lastRouteRequestKey = "";
+    private int analysisGeneration = 0;
     private MediaPlayer player;
     // Once a Snapp event is seen, keep its report separately from analyzer-app events.
     private boolean snappContextSeen = false;
@@ -46,6 +52,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         lastSpokenKey = "";
         pendingEventText.setLength(0);
         lastWindowSignature = "";
+        pendingPickupAddress = "";
+        pendingDestinationAddress = "";
+        routeAnalysisInProgress = false;
+        lastRouteRequestKey = "";
+        analysisGeneration++;
     };
 
     @Override
@@ -114,6 +125,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             }
 
             String current = collected.toString().trim();
+            String currentPickupAddress = findAddressInSnappWindows(root, "originAddress");
+            String currentDestinationAddress = findAddressInSnappWindows(root, "firstDestinationAddress");
             if (current.isEmpty()) {
                 saveDiagnostic("پنجره اسنپ شناسایی شد اما متن قابل‌خواندن خالی است.");
                 scheduleOfferReset();
@@ -125,8 +138,15 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             if (!lastWindowSignature.isEmpty() && !signature.contains(lastWindowSignature)
                     && !lastWindowSignature.contains(signature)) {
                 pendingEventText.setLength(0);
+                pendingPickupAddress = "";
+                pendingDestinationAddress = "";
+                routeAnalysisInProgress = false;
+                lastRouteRequestKey = "";
+                analysisGeneration++;
             }
             lastWindowSignature = signature;
+            if (!currentPickupAddress.trim().isEmpty()) pendingPickupAddress = currentPickupAddress.trim();
+            if (!currentDestinationAddress.trim().isEmpty()) pendingDestinationAddress = currentDestinationAddress.trim();
 
             saveDiagnostic("متن صفحه اسنپ دریافت شد:\n" + current.substring(0, Math.min(current.length(), 3500)));
             String normalizedCurrent = normalizeDigits(current);
@@ -157,6 +177,82 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         }
     }
 
+
+
+    private String findAddressInSnappWindows(AccessibilityNodeInfo root, String idSuffix) {
+        String value = findAddressInNode(root, idSuffix);
+        if (!value.isEmpty()) return value;
+        List<AccessibilityWindowInfo> windows = null;
+        try {
+            windows = getWindows();
+            if (windows == null) return "";
+            for (AccessibilityWindowInfo window : windows) {
+                if (window == null) continue;
+                AccessibilityNodeInfo windowRoot = null;
+                try {
+                    windowRoot = window.getRoot();
+                    if (windowRoot == null) continue;
+                    CharSequence pkg = windowRoot.getPackageName();
+                    if (pkg == null || !SNAPP_PACKAGE.contentEquals(pkg)) continue;
+                    value = findAddressInNode(windowRoot, idSuffix);
+                    if (!value.isEmpty()) return value;
+                } catch (Exception ignored) {
+                } finally {
+                    if (windowRoot != null) try { windowRoot.recycle(); } catch (Exception ignored) { }
+                }
+            }
+        } catch (Exception ignored) { }
+        return "";
+    }
+
+    private String findAddressInNode(AccessibilityNodeInfo node, String idSuffix) {
+        if (node == null) return "";
+        try {
+            String id = node.getViewIdResourceName();
+            if (id != null && (id.endsWith("/" + idSuffix) || id.equals(idSuffix))
+                    && node.isVisibleToUser()) {
+                LinkedHashSet<String> parts = new LinkedHashSet<>();
+                collectAddressText(node, parts);
+                StringBuilder result = new StringBuilder();
+                for (String part : parts) {
+                    if (result.length() > 0) result.append(" ");
+                    result.append(part);
+                }
+                if (result.length() > 0) return result.toString().trim();
+            }
+            for (int i = 0; i < node.getChildCount(); i++) {
+                AccessibilityNodeInfo child = node.getChild(i);
+                if (child != null) {
+                    try {
+                        String found = findAddressInNode(child, idSuffix);
+                        if (!found.isEmpty()) return found;
+                    } finally {
+                        try { child.recycle(); } catch (Exception ignored) { }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not extract address node " + idSuffix, e);
+        }
+        return "";
+    }
+
+    private void collectAddressText(AccessibilityNodeInfo node, LinkedHashSet<String> parts) {
+        if (node == null) return;
+        try {
+            CharSequence text = node.getText();
+            if (text != null && text.length() > 0) parts.add(text.toString().trim());
+            CharSequence description = node.getContentDescription();
+            if (description != null && description.length() > 0) parts.add(description.toString().trim());
+            for (int i = 0; i < node.getChildCount(); i++) {
+                AccessibilityNodeInfo child = node.getChild(i);
+                if (child != null) {
+                    try { collectAddressText(child, parts); }
+                    finally { try { child.recycle(); } catch (Exception ignored) { } }
+                }
+            }
+        } catch (Exception ignored) { }
+    }
 
     private void collectSnappWindows(StringBuilder out) {
         List<AccessibilityWindowInfo> windows = null;
@@ -318,9 +414,36 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         ArrayList<Double> distances = findDistances(text);
         if (distances.size() < 2) {
-            saveDiagnostic("مبلغ پیدا شد (" + fare + ") اما دو فاصله کیلومتری پیدا نشد. فاصله‌های پیدا‌شده=" + distances + "\nمتن:\n" + raw.substring(0, Math.min(raw.length(), 3500)));
-            // Do not guess when the pickup and destination cannot both be identified.
-            scheduleOfferReset();
+            String pickupAddress = pendingPickupAddress;
+            String destinationAddress = pendingDestinationAddress;
+            if (pickupAddress.isEmpty() || destinationAddress.isEmpty()) {
+                saveDiagnostic("مبلغ پیدا شد (" + fare + ") اما فاصله و هر دو آدرس کامل برای محاسبه مسیر در دسترس نیستند. مبدأ=" 
+                        + pickupAddress + " | مقصد=" + destinationAddress
+                        + "\nمتن:\n" + raw.substring(0, Math.min(raw.length(), 2500)));
+                scheduleOfferReset();
+                return;
+            }
+
+            String routeKey = fare + "|" + pickupAddress + "|" + destinationAddress;
+            if (routeAnalysisInProgress || routeKey.equals(lastRouteRequestKey)) return;
+            routeAnalysisInProgress = true;
+            lastRouteRequestKey = routeKey;
+            final int expectedGeneration = analysisGeneration;
+            saveDiagnostic("مبلغ " + fare + " تومان و آدرس‌های سفر دریافت شد. در حال گرفتن موقعیت GPS و محاسبه فاصله جاده‌ای از نقشه هستم...");
+
+            RouteDistanceClient.calculate(this, pickupAddress, destinationAddress, result -> {
+                routeAnalysisInProgress = false;
+                if (expectedGeneration != analysisGeneration) return;
+                if (!result.success) {
+                    saveDiagnostic("محاسبه مسیر انجام نشد: " + result.message
+                            + "\nمبدأ: " + pickupAddress + "\nمقصد: " + destinationAddress);
+                    scheduleOfferReset();
+                    return;
+                }
+                saveDiagnostic("فاصله‌های نقشه محاسبه شد | مبدأ تا راننده=" + result.pickupKm
+                        + " کیلومتر | مسیر مقصد=" + result.destinationKm + " کیلومتر. در حال بررسی قانون ۱۷ هزار تومان...");
+                completeAnalysis(fare, result.pickupKm, result.destinationKm, "GPS + OpenStreetMap/OSRM");
+            });
             return;
         }
 
@@ -335,6 +458,15 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             return;
         }
 
+        completeAnalysis(fare, pickupKm, destinationKm, "فاصله‌های خوانده‌شده از صفحه اسنپ");
+    }
+
+    private void completeAnalysis(long fare, double pickupKm, double destinationKm, String source) {
+        if (pickupKm <= 0 || destinationKm <= 0) {
+            saveDiagnostic("فاصله مسیر معتبر نیست؛ هیچ تصمیمی اعلام نشد.");
+            scheduleOfferReset();
+            return;
+        }
         double tomanPerKm = fare / destinationKm;
         boolean pickupAllowed = pickupKm <= MAX_PICKUP_KM;
         boolean fareAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
@@ -346,8 +478,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         lastSpokenKey = key;
         handler.removeCallbacks(resetOffer);
-        saveDiagnostic("تحلیل کامل شد: " + phrase + " | کرایه=" + fare + " | فاصله بالایی/مبدأ=" + pickupKm + " | فاصله پایینی/مقصد=" + destinationKm + " | نرخ مقصد=" + tomanPerKm + " تومان/کیلومتر");
-        Log.i(TAG, "VOICE_RESULT=" + phrase + " pickupKm=" + pickupKm
+        saveDiagnostic("تحلیل کامل شد: " + phrase + " | روش=" + source + " | کرایه=" + fare
+                + " | فاصله مبدأ/راننده=" + pickupKm + " کیلومتر"
+                + " | فاصله مقصد=" + destinationKm + " کیلومتر"
+                + " | نرخ مقصد=" + tomanPerKm + " تومان/کیلومتر");
+        Log.i(TAG, "VOICE_RESULT=" + phrase + " source=" + source + " pickupKm=" + pickupKm
                 + " destinationKm=" + destinationKm + " fare=" + fare
                 + " tomanPerKm=" + tomanPerKm + " pickupAllowed=" + pickupAllowed
                 + " fareAllowed=" + fareAllowed);
