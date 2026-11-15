@@ -9,6 +9,7 @@ on:
       - voice-17000-pickup2km-accessibility-restore-v1
       - voice-17000-pickup2km-diagnostic-v2
       - voice-17000-pickup2km-diagnostic-v3
+      - voice-17000-pickup2km-multiwindow-v4
   workflow_dispatch:
 
 jobs:
