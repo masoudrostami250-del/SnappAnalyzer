@@ -12,6 +12,7 @@ on:
       - voice-17000-pickup2km-multiwindow-v4
       - voice-17000-pickup2km-node-dump-v5
       - voice-17000-pickup2km-active-fare-v6
+      - voice-17000-pickup2km-address-number-fix-v7
   workflow_dispatch:
 
 jobs:
