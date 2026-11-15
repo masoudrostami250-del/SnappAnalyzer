@@ -79,3 +79,5 @@ jobs:
 # Trigger a fresh build after fixing the diagnostic Java source.
 
 # Trigger build for active-offer fare selection fix.
+
+# Rebuild after enabling this branch.
