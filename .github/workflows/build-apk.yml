@@ -13,6 +13,7 @@ on:
       - voice-17000-pickup2km-node-dump-v5
       - voice-17000-pickup2km-active-fare-v6
       - voice-17000-pickup2km-address-number-fix-v7
+      - voice-17000-pickup2km-structure-report-v8
   workflow_dispatch:
 
 jobs:
@@ -84,3 +85,5 @@ jobs:
 # Rebuild after enabling this branch.
 
 # Trigger build for address-number distance parsing fix.
+
+# Build v8 with a persistent, separately accessible node-structure report.
