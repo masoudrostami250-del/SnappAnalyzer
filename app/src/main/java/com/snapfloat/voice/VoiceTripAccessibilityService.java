@@ -347,7 +347,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
     private Double findDistanceNearLabel(String text, String labelExpression) {
         Pattern p = Pattern.compile(labelExpression
-                + "[^0-9]{0,70}([0-9]+(?:[.,][0-9]+)?)\\s*(km|کیلومتر|کيلومتر|متر|m)",
+                + "[^0-9]{0,70}([0-9]+(?:[.,][0-9]+)?)\\s*(km|کیلومتر|کيلومتر|متر(?!ی)|m)",
                 Pattern.CASE_INSENSITIVE);
         Matcher m = p.matcher(text);
         if (!m.find()) return null;
@@ -364,7 +364,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private ArrayList<Double> findDistances(String text) {
         ArrayList<Double> distances = new ArrayList<>();
         Matcher matcher = Pattern.compile(
-                "([0-9]+(?:[.,][0-9]+)?)\\s*(km|کیلومتر|کيلومتر|متر|m)",
+                "([0-9]+(?:[.,][0-9]+)?)\\s*(km|کیلومتر|کيلومتر|متر(?!ی)|m)",
                 Pattern.CASE_INSENSITIVE).matcher(text);
         while (matcher.find()) {
             try {
