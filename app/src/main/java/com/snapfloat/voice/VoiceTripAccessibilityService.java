@@ -378,6 +378,24 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     }
 
     private Long findFare(String text) {
+        // Snapp can leave a previous card's fare in the accessibility tree.
+        // If the active card is explicitly marked as a suggested trip, read
+        // the amount immediately after that marker instead of taking the
+        // numerically largest amount from the whole screen.
+        Matcher suggested = Pattern.compile("سفر\\s*پیشنهادی\\s*اسنپ").matcher(text);
+        int markerEnd = -1;
+        while (suggested.find()) markerEnd = suggested.end();
+        if (markerEnd >= 0) {
+            int end = Math.min(text.length(), markerEnd + 140);
+            String activeSection = text.substring(markerEnd, end);
+            ArrayList<Long> activeFares = new ArrayList<>();
+            collectFares(Pattern.compile("([0-9][0-9,\\.\\s]*)\\s*(?:تومان|تومن|ریال)").matcher(activeSection), activeFares);
+            if (activeFares.isEmpty()) {
+                collectFares(Pattern.compile("(?:تومان|تومن|ریال)\\s*([0-9][0-9,\\.\\s]*)").matcher(activeSection), activeFares);
+            }
+            if (!activeFares.isEmpty()) return activeFares.get(0);
+        }
+
         ArrayList<Long> fares = new ArrayList<>();
         collectFares(Pattern.compile("(?:تومان|تومن|ریال)\\s*([0-9][0-9,\\.\\s]*)").matcher(text), fares);
         collectFares(Pattern.compile("([0-9][0-9,\\.\\s]*)\\s*(?:تومان|تومن|ریال)").matcher(text), fares);
@@ -387,10 +405,10 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                     .matcher(text);
             while (labelled.find()) addFare(labelled.group(1), fares);
         }
-        if (fares.isEmpty()) return null;
-        long max = 0;
-        for (Long value : fares) if (value != null && value > max) max = value;
-        return max > 0 ? max : null;
+        // When several amounts are present without an explicit active-card
+        // marker, the last visible fare is more likely to belong to the
+        // currently displayed offer than an older amount retained in the tree.
+        return fares.isEmpty() ? null : fares.get(fares.size() - 1);
     }
 
     private void collectFares(Matcher matcher, ArrayList<Long> fares) {
