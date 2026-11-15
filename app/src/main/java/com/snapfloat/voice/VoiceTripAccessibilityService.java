@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+// v16: voice output is permitted only for a verified active Snapp trip offer.
 public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String TAG = "SnappVoice17000Pickup2km";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
