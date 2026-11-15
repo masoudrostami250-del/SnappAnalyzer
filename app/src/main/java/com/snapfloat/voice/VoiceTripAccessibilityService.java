@@ -43,11 +43,31 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     // Once a Snapp event is seen, keep its report separately from analyzer-app events.
     private boolean snappContextSeen = false;
 
+    private int analysisRetries = 0;
     private final Runnable analyzePending = () -> {
         String snapshot = pendingEventText.toString();
-        // Keep partial accessibility text briefly: Snapp may publish fare and
-        // route distances in separate events, not in one complete event.
-        if (!snapshot.trim().isEmpty()) analyzeOffer(snapshot);
+        String combined = snapshot;
+        // Screen OCR is used only when Snapp's accessibility tree omits the two km values.
+        try {
+            android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
+            String ocr = prefs.getString("screen_ocr_text", "");
+            long capturedAt = prefs.getLong("screen_ocr_time", 0L);
+            if (!ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 3500L
+                    && findDistances(normalizeDigits(combined)).size() < 2) {
+                combined = combined + " " + ocr;
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not read latest screen OCR text", e);
+        }
+        if (!combined.trim().isEmpty()) {
+            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 8) {
+                analysisRetries++;
+                handler.postDelayed(analyzePending, 450L);
+                return;
+            }
+            analysisRetries = 0;
+            analyzeOffer(combined);
+        }
     };
     private final Runnable resetOffer = () -> {
         lastSpokenKey = "";
@@ -193,6 +213,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 }
             }
             handler.removeCallbacks(analyzePending);
+            analysisRetries = 0;
             handler.postDelayed(analyzePending, ANALYZE_DELAY_MS);
         } catch (Exception e) {
             Log.e(TAG, "Could not read Snapp accessibility content", e);
