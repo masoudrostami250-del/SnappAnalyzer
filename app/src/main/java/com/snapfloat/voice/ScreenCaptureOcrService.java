@@ -131,7 +131,7 @@ public class ScreenCaptureOcrService extends Service {
                 image = reader.acquireLatestImage();
                 if (image == null) return;
                 long now = System.currentTimeMillis();
-                if (now - lastFrameAt < 800L) return;
+                if (now - lastFrameAt < 500L) return;
                 lastFrameAt = now;
 
                 Image.Plane[] planes = image.getPlanes();
