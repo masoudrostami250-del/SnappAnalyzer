@@ -27,7 +27,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
     private static final double MAX_PICKUP_KM = 2.0;
-    private static final long ANALYZE_DELAY_MS = 900L;
+    private static final long ANALYZE_DELAY_MS = 250L;
     private static final long RESET_DELAY_MS = 7000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -53,7 +53,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
             String ocr = prefs.getString("screen_ocr_text", "");
             long capturedAt = prefs.getLong("screen_ocr_time", 0L);
-            if (!ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 3500L
+            if (!ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 2000L
                     && findDistances(normalizeDigits(combined)).size() < 2) {
                 combined = combined + " " + ocr;
             }
@@ -61,7 +61,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             Log.w(TAG, "Could not read latest screen OCR text", e);
         }
         if (!combined.trim().isEmpty()) {
-            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 8) {
+            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 10) {
                 analysisRetries++;
                 scheduleAnalyzeRetry();
                 return;
@@ -71,7 +71,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         }
     };
     private void scheduleAnalyzeRetry() {
-        handler.postDelayed(analyzePending, 450L);
+        handler.postDelayed(analyzePending, 250L);
     }
 
     private final Runnable resetOffer = () -> {
