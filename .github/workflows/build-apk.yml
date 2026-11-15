@@ -8,6 +8,7 @@ on:
       - voice-selector-video-clips-v1
       - voice-17000-pickup2km-accessibility-restore-v1
       - voice-17000-pickup2km-diagnostic-v2
+      - voice-17000-pickup2km-diagnostic-v3
   workflow_dispatch:
 
 jobs:
