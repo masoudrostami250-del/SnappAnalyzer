@@ -35,6 +35,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private String lastSpokenKey = "";
     private long lastSpokenAtMs = 0L;
     private static final long SAME_TRIP_DEDUPE_MS = 120000L;
+    private String lastOcrOfferSignature = "";
+    private long lastOcrOfferCaptureTime = 0L;
     private String lastWindowSignature = "";
     private String lastOfferIdentity = "";
     private String pendingPickupAddress = "";
@@ -55,14 +57,46 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
             String ocr = prefs.getString("screen_ocr_text", "");
             long capturedAt = prefs.getLong("screen_ocr_time", 0L);
-            if (!ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 6000L
-                    && findDistances(normalizeDigits(combined)).size() < 2) {
+            // When the accessibility tree lacks the pickup label, accept OCR only
+            // from a fresh frame that visibly contains the active-offer pickup marker.
+            boolean snapshotHasPickupMarker = hasPickupOfferMarker(snapshot);
+            boolean freshOcr = !ocr.trim().isEmpty()
+                    && System.currentTimeMillis() - capturedAt <= 1200L;
+            if (!snapshotHasPickupMarker && freshOcr && hasPickupOfferMarker(ocr)) {
+                String ocrNormalized = normalizeDigits(ocr);
+                ArrayList<Double> ocrDistances = findDistances(ocrNormalized);
+                Long ocrFare = findFare(ocrNormalized);
+                if (ocrFare != null && ocrDistances.size() >= 2) {
+                    String ocrKey = makeTripKey(ocrFare, ocrDistances.get(0), ocrDistances.get(1));
+                    if (capturedAt != lastOcrOfferCaptureTime
+                            && ocrKey.equals(lastOcrOfferSignature)
+                            && capturedAt - lastOcrOfferCaptureTime >= 200L
+                            && capturedAt - lastOcrOfferCaptureTime <= 1500L) {
+                        combined = combined + " " + ocr;
+                    } else {
+                        lastOcrOfferSignature = ocrKey;
+                        lastOcrOfferCaptureTime = capturedAt;
+                        analysisRetries++;
+                        if (analysisRetries <= 10) scheduleAnalyzeRetry();
+                        return;
+                    }
+                }
+            } else if (snapshotHasPickupMarker) {
                 combined = combined + " " + ocr;
             }
         } catch (Exception e) {
             Log.w(TAG, "Could not read latest screen OCR text", e);
         }
         if (!combined.trim().isEmpty()) {
+            // Never analyze stale fare/distance text unless the active offer's
+            // pickup countdown marker ("... تا مبدأ") is present.
+            if (!hasPickupOfferMarker(combined)) {
+                analysisRetries = 0;
+                lastOcrOfferSignature = "";
+                lastOcrOfferCaptureTime = 0L;
+                Log.i(TAG, "NO_ACTIVE_OFFER_MARKER; voice suppressed");
+                return;
+            }
             if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 10) {
                 analysisRetries++;
                 scheduleAnalyzeRetry();
@@ -461,6 +495,17 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         } catch (Exception ignored) { }
     }
 
+    private boolean hasPickupOfferMarker(String raw) {
+        if (raw == null || raw.isEmpty()) return false;
+        String value = raw.replace('\u200c', ' ').replace('ي', 'ی').replace('ك', 'ک');
+        return Pattern.compile("تا\\s*م(?:بدا|بدأ)", Pattern.CASE_INSENSITIVE).matcher(value).find();
+    }
+
+    private String makeTripKey(long fare, double pickupKm, double destinationKm) {
+        return fare + "|" + Math.round(pickupKm * 10.0)
+                + "|" + Math.round(destinationKm * 10.0);
+    }
+
     private void analyzeOffer(String raw) {
         String text = normalizeDigits(raw).toLowerCase(Locale.ROOT);
         Long fare = findFare(text);
@@ -499,8 +544,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         String phrase = pickupAllowed && fareAllowed ? "برو" : "نرو";
 
         // Round distances to 0.1 km so minor OCR fluctuations do not re-announce one offer.
-        String key = fare + "|" + Math.round(pickupKm * 10.0)
-                + "|" + Math.round(destinationKm * 10.0);
+        String key = makeTripKey(fare, pickupKm, destinationKm);
         long now = System.currentTimeMillis();
         if (key.equals(lastSpokenKey) && now - lastSpokenAtMs < SAME_TRIP_DEDUPE_MS) {
             Log.i(TAG, "DUPLICATE_TRIP_SUPPRESSED key=" + key);
