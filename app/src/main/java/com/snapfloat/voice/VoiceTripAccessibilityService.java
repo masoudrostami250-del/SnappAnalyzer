@@ -62,13 +62,17 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         if (!combined.trim().isEmpty()) {
             if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 8) {
                 analysisRetries++;
-                handler.postDelayed(analyzePending, 450L);
+                scheduleAnalyzeRetry();
                 return;
             }
             analysisRetries = 0;
             analyzeOffer(combined);
         }
     };
+    private void scheduleAnalyzeRetry() {
+        handler.postDelayed(analyzePending, 450L);
+    }
+
     private final Runnable resetOffer = () -> {
         lastSpokenKey = "";
         pendingEventText.setLength(0);
