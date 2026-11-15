@@ -7,6 +7,7 @@ on:
       - voice-17000-pickup-2km-snapp-update-resilient-v2
       - voice-selector-video-clips-v1
       - voice-17000-pickup2km-accessibility-restore-v1
+      - voice-17000-pickup2km-diagnostic-v2
   workflow_dispatch:
 
 jobs:
