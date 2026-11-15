@@ -2,6 +2,7 @@ package com.snapfloat.voice;
 
 import android.accessibilityservice.AccessibilityService;
 import android.media.MediaPlayer;
+import android.media.PlaybackParams;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -621,6 +622,10 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             // MediaPlayer.create() returns a prepared player. Do not change
             // its audio attributes after preparation; use the normal media route.
             player.setVolume(1.0f, 1.0f);
+            // Play the existing Persian voice recording 30% faster without changing pitch.
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                player.setPlaybackParams(new PlaybackParams().setSpeed(1.30f).setPitch(1.0f));
+            }
             player.setOnCompletionListener(mp -> releasePlayer());
             player.setOnErrorListener((mp, what, extra) -> {
                 Log.e(TAG, "Audio playback error what=" + what + " extra=" + extra);
