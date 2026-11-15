@@ -238,7 +238,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                     .append(" focus=").append(node.isFocusable())
                     .append(" visible=").append(node.isVisibleToUser())
                     .append(" pkg=").append(pkg == null ? "" : pkg)
-                    .append('\\n');
+                    .append('\n');
             for (int i = 0; i < node.getChildCount(); i++) {
                 if (count[0] >= 250 || out.length() >= 14000) break;
                 AccessibilityNodeInfo child = node.getChild(i);
