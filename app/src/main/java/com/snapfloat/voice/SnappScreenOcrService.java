@@ -84,6 +84,12 @@ public class SnappScreenOcrService extends Service {
     try{
       image=r.acquireLatestImage();
       if(image==null || busy || System.currentTimeMillis()-lastProcess<1100) return;
+      android.content.SharedPreferences prefs=getSharedPreferences("voice_diagnostics",MODE_PRIVATE);
+      String activePackage=prefs.getString("ocr_capture_package","");
+      if(!"cab.snapp.driver".equals(activePackage)){
+        prefs.edit().putString("ocr_status","منتظر صفحه اسنپ هستم؛ صفحه فعلی: "+(activePackage.isEmpty()?"نامشخص":activePackage)).apply();
+        return;
+      }
       busy=true; lastProcess=System.currentTimeMillis();
       Image.Plane p=image.getPlanes()[0]; ByteBuffer b=p.getBuffer();
       int pixel=p.getPixelStride(), row=p.getRowStride();
@@ -99,6 +105,13 @@ public class SnappScreenOcrService extends Service {
     }catch(Exception e){ if(image!=null) image.close(); busy=false; Log.e(TAG,"Frame failed",e); }
   }
   private void analyzeOcr(Text result){
+    String activePackage=getSharedPreferences("voice_diagnostics",MODE_PRIVATE).getString("ocr_capture_package","");
+    if(!"cab.snapp.driver".equals(activePackage)){
+      getSharedPreferences("voice_diagnostics",MODE_PRIVATE).edit()
+        .putString("ocr_status","تصویر پس از خروج از اسنپ آماده شد؛ این فریم نادیده گرفته شد")
+        .apply();
+      return;
+    }
     StringBuilder all=new StringBuilder();
     for(Text.TextBlock block:result.getTextBlocks()) for(Text.Line line:block.getLines()) all.append(' ').append(line.getText());
     String raw=digits(all.toString());
