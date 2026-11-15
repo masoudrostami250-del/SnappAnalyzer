@@ -158,22 +158,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             return;
         }
 
-        Double labelledPickup = findDistanceNearLabel(text,
-                "(?:مبدا|مبدأ|مسافت\\s*تا\\s*مبدا|مسافت\\s*تا\\s*مبدأ)");
-        Double labelledDestination = findDistanceNearLabel(text,
-                "(?:مقصد|مسافت\\s*تا\\s*مقصد)");
-        double pickupKm;
-        double destinationKm;
-
-        if (labelledPickup != null && labelledDestination != null) {
-            pickupKm = labelledPickup;
-            destinationKm = labelledDestination;
-        } else {
-            // Compatibility fallback for layouts that show two distances without labels.
-            // Keep duplicates: pickup=1km and destination=1km is a valid display.
-            pickupKm = distances.get(0);
-            destinationKm = distances.get(1);
-        }
+        // Snapp may rename or remove the pickup/destination labels.
+        // Always interpret the first (upper) displayed distance as pickup
+        // and the second (lower) displayed distance as destination.
+        double pickupKm = distances.get(0);
+        double destinationKm = distances.get(1);
 
         if (pickupKm <= 0 || destinationKm <= 0) {
             scheduleOfferReset();
