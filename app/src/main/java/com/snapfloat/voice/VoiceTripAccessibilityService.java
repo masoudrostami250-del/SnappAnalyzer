@@ -53,62 +53,21 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private final Runnable analyzePending = () -> {
         String snapshot = pendingEventText.toString();
         String combined = snapshot;
-        // v17: the accept-offer button is the reliable active-card signal.
-        // The two route distances are visual-only and must be read from fresh OCR frames.
         try {
             android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
             boolean activeOffer = prefs.getBoolean("active_offer_visible", false);
             long offerSeenAt = prefs.getLong("active_offer_seen_at", 0L);
             String ocr = prefs.getString("screen_ocr_text", "");
             long capturedAt = prefs.getLong("screen_ocr_time", 0L);
-            boolean freshOcr = !ocr.trim().isEmpty()
-                    && System.currentTimeMillis() - capturedAt <= 1800L;
-            if (!activeOffer || System.currentTimeMillis() - offerSeenAt > 5000L) {
-                analysisRetries = 0;
-                lastOcrOfferSignature = "";
-                lastOcrOfferCaptureTime = 0L;
-                return;
-            }
-            if (freshOcr) {
-                String ocrNormalized = normalizeDigits(ocr);
-                ArrayList<Double> ocrDistances = findDistances(ocrNormalized);
-                Long ocrFare = findFare(normalizeDigits(snapshot));
-                if (ocrFare == null) ocrFare = findFare(ocrNormalized);
-                if (ocrFare != null && ocrDistances.size() >= 2) {
-                    String ocrKey = makeTripKey(ocrFare, ocrDistances.get(0), ocrDistances.get(1));
-                    if (capturedAt != lastOcrOfferCaptureTime
-                            && ocrKey.equals(lastOcrOfferSignature)
-                            && capturedAt - lastOcrOfferCaptureTime >= 200L
-                            && capturedAt - lastOcrOfferCaptureTime <= 1800L) {
-                        combined = combined + " " + ocr;
-                    } else {
-                        lastOcrOfferSignature = ocrKey;
-                        lastOcrOfferCaptureTime = capturedAt;
-                        analysisRetries++;
-                        if (analysisRetries <= 12) scheduleAnalyzeRetry();
-                        return;
-                    }
-                }
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Could not read latest screen OCR text", e);
-        }
+            boolean freshOcr = !ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 6000L;
+            if (!activeOffer || System.currentTimeMillis() - offerSeenAt > 5000L) { analysisRetries = 0; return; }
+            if (freshOcr && findDistances(normalizeDigits(snapshot)).size() < 2) combined = snapshot + " " + ocr;
+        } catch (Exception e) { Log.w(TAG, "Could not read latest screen OCR text", e); }
         if (!combined.trim().isEmpty()) {
-            android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
-            boolean activeOffer = prefs.getBoolean("active_offer_visible", false);
-            long offerSeenAt = prefs.getLong("active_offer_seen_at", 0L);
-            if (!activeOffer || System.currentTimeMillis() - offerSeenAt > 5000L) {
-                Log.i(TAG, "NO_ACCEPT_OFFER_BUTTON; voice suppressed");
-                return;
-            }
-            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 12) {
-                analysisRetries++;
-                scheduleAnalyzeRetry();
-                return;
-            }
+            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); return; }
             analysisRetries = 0;
             analyzeOffer(combined);
-        }
+        } else if (analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); }
     };
     private void scheduleAnalyzeRetry() {
         handler.postDelayed(analyzePending, 250L);
@@ -209,7 +168,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             }
 
             // Snapp exposes the offer card through this stable resource ID.
-            boolean activeOfferButton = hasVisibleNodeId(root, "acceptOfferButton");
+            boolean activeOfferButton = hasVisibleNodeId(root, "acceptOfferButton") || hasVisibleAcceptButtonInSnappWindows();
             getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
                     .putBoolean("active_offer_visible", activeOfferButton)
                     .putLong("active_offer_seen_at", activeOfferButton ? System.currentTimeMillis() : 0L)
@@ -287,6 +246,25 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
 
 
+    private boolean hasVisibleAcceptButtonInSnappWindows() {
+        List<AccessibilityWindowInfo> windows = null;
+        try {
+            windows = getWindows();
+            if (windows == null) return false;
+            for (AccessibilityWindowInfo window : windows) {
+                if (window == null) continue;
+                AccessibilityNodeInfo windowRoot = null;
+                try {
+                    windowRoot = window.getRoot();
+                    if (windowRoot == null) continue;
+                    CharSequence pkg = windowRoot.getPackageName();
+                    if (pkg != null && SNAPP_PACKAGE.contentEquals(pkg) && hasVisibleNodeId(windowRoot, "acceptOfferButton")) return true;
+                } catch (Exception ignored) {
+                } finally { if (windowRoot != null) try { windowRoot.recycle(); } catch (Exception ignored) { } }
+            }
+        } catch (Exception ignored) { }
+        return false;
+    }
     private boolean hasVisibleNodeId(AccessibilityNodeInfo node, String suffix) {
         if (node == null) return false;
         try {
