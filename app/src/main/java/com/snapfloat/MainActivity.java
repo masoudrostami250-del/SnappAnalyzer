@@ -92,8 +92,8 @@ public class MainActivity extends Activity {
         Button diagnostic = new Button(this);
         diagnostic.setText("گزارش آخرین دریافت از اسنپ");
         diagnostic.setOnClickListener(v -> {
-            String report = getPreferences().getString("last_accessibility_report",
-                    "هنوز گزارشی ثبت نشده است. برنامه را باز کنید، سپس پیشنهاد سفر اسنپ را روی صفحه بیاورید و دوباره این دکمه را بزنید.");
+            String report = getPreferences().getString("last_snapp_report",
+                    "هنوز هیچ رویدادی از اسنپ ثبت نشده است. اسنپ را باز کنید، پیشنهاد سفر را روی صفحه بیاورید، چند ثانیه صبر کنید و سپس این گزارش را دوباره بررسی کنید. رویدادهای خود برنامه در این گزارش نمایش داده نمی‌شوند.");
             new AlertDialog.Builder(this)
                     .setTitle("گزارش عیب‌یابی")
                     .setMessage(report)
