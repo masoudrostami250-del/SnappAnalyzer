@@ -22,7 +22,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// v16: voice output is permitted only for a verified active Snapp trip offer.
+// v17: detect offers by Snapp's acceptOfferButton ID; read route km values with OCR.
 public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String TAG = "SnappVoice17000Pickup2km";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
@@ -53,52 +53,55 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private final Runnable analyzePending = () -> {
         String snapshot = pendingEventText.toString();
         String combined = snapshot;
-        // Screen OCR is used only when Snapp's accessibility tree omits the two km values.
+        // v17: the accept-offer button is the reliable active-card signal.
+        // The two route distances are visual-only and must be read from fresh OCR frames.
         try {
             android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
+            boolean activeOffer = prefs.getBoolean("active_offer_visible", false);
+            long offerSeenAt = prefs.getLong("active_offer_seen_at", 0L);
             String ocr = prefs.getString("screen_ocr_text", "");
             long capturedAt = prefs.getLong("screen_ocr_time", 0L);
-            // When the accessibility tree lacks the pickup label, accept OCR only
-            // from a fresh frame that visibly contains the active-offer pickup marker.
-            boolean snapshotHasPickupMarker = hasPickupOfferMarker(snapshot);
             boolean freshOcr = !ocr.trim().isEmpty()
-                    && System.currentTimeMillis() - capturedAt <= 1200L;
-            if (!snapshotHasPickupMarker && freshOcr && hasPickupOfferMarker(ocr)) {
+                    && System.currentTimeMillis() - capturedAt <= 1800L;
+            if (!activeOffer || System.currentTimeMillis() - offerSeenAt > 5000L) {
+                analysisRetries = 0;
+                lastOcrOfferSignature = "";
+                lastOcrOfferCaptureTime = 0L;
+                return;
+            }
+            if (freshOcr) {
                 String ocrNormalized = normalizeDigits(ocr);
                 ArrayList<Double> ocrDistances = findDistances(ocrNormalized);
-                Long ocrFare = findFare(ocrNormalized);
+                Long ocrFare = findFare(normalizeDigits(snapshot));
+                if (ocrFare == null) ocrFare = findFare(ocrNormalized);
                 if (ocrFare != null && ocrDistances.size() >= 2) {
                     String ocrKey = makeTripKey(ocrFare, ocrDistances.get(0), ocrDistances.get(1));
                     if (capturedAt != lastOcrOfferCaptureTime
                             && ocrKey.equals(lastOcrOfferSignature)
                             && capturedAt - lastOcrOfferCaptureTime >= 200L
-                            && capturedAt - lastOcrOfferCaptureTime <= 1500L) {
+                            && capturedAt - lastOcrOfferCaptureTime <= 1800L) {
                         combined = combined + " " + ocr;
                     } else {
                         lastOcrOfferSignature = ocrKey;
                         lastOcrOfferCaptureTime = capturedAt;
                         analysisRetries++;
-                        if (analysisRetries <= 10) scheduleAnalyzeRetry();
+                        if (analysisRetries <= 12) scheduleAnalyzeRetry();
                         return;
                     }
                 }
-            } else if (snapshotHasPickupMarker && freshOcr) {
-                combined = combined + " " + ocr;
             }
         } catch (Exception e) {
             Log.w(TAG, "Could not read latest screen OCR text", e);
         }
         if (!combined.trim().isEmpty()) {
-            // Never analyze stale fare/distance text unless the active offer's
-            // pickup countdown marker ("... تا مبدأ") is present.
-            if (!hasPickupOfferMarker(combined)) {
-                analysisRetries = 0;
-                lastOcrOfferSignature = "";
-                lastOcrOfferCaptureTime = 0L;
-                Log.i(TAG, "NO_ACTIVE_OFFER_MARKER; voice suppressed");
+            android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
+            boolean activeOffer = prefs.getBoolean("active_offer_visible", false);
+            long offerSeenAt = prefs.getLong("active_offer_seen_at", 0L);
+            if (!activeOffer || System.currentTimeMillis() - offerSeenAt > 5000L) {
+                Log.i(TAG, "NO_ACCEPT_OFFER_BUTTON; voice suppressed");
                 return;
             }
-            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 10) {
+            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 12) {
                 analysisRetries++;
                 scheduleAnalyzeRetry();
                 return;
@@ -205,25 +208,19 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 return;
             }
 
-            // Clear retained offer text whenever neither the live Snapp tree nor
-            // a very recent OCR frame shows the pickup countdown of an active offer.
-            boolean livePickupMarker = hasPickupOfferMarker(current);
-            boolean freshOcrPickupMarker = false;
-            try {
-                android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
-                String latestOcr = prefs.getString("screen_ocr_text", "");
-                long latestOcrAt = prefs.getLong("screen_ocr_time", 0L);
-                freshOcrPickupMarker = !latestOcr.isEmpty()
-                        && System.currentTimeMillis() - latestOcrAt <= 1200L
-                        && hasPickupOfferMarker(latestOcr);
-            } catch (Exception ignored) { }
-            if (!livePickupMarker && !freshOcrPickupMarker) {
+            // Snapp exposes the offer card through this stable resource ID.
+            boolean activeOfferButton = hasVisibleNodeId(root, "acceptOfferButton");
+            getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
+                    .putBoolean("active_offer_visible", activeOfferButton)
+                    .putLong("active_offer_seen_at", activeOfferButton ? System.currentTimeMillis() : 0L)
+                    .apply();
+            if (!activeOfferButton) {
                 pendingEventText.setLength(0);
                 handler.removeCallbacks(analyzePending);
                 analysisRetries = 0;
                 lastOcrOfferSignature = "";
                 lastOcrOfferCaptureTime = 0L;
-                saveDiagnostic("پیشنهاد سفری فعال نیست؛ برنامه سکوت کرد.");
+                saveDiagnostic("دکمه قبول سفر وجود ندارد؛ برنامه سکوت کرد.");
                 return;
             }
 
@@ -289,6 +286,26 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     }
 
 
+
+    private boolean hasVisibleNodeId(AccessibilityNodeInfo node, String suffix) {
+        if (node == null) return false;
+        try {
+            String id = node.getViewIdResourceName();
+            if (id != null && (id.endsWith("/" + suffix) || id.equals(suffix))
+                    && node.isVisibleToUser()) return true;
+            for (int i = 0; i < node.getChildCount(); i++) {
+                AccessibilityNodeInfo child = node.getChild(i);
+                if (child != null) {
+                    try {
+                        if (hasVisibleNodeId(child, suffix)) return true;
+                    } finally {
+                        try { child.recycle(); } catch (Exception ignored) { }
+                    }
+                }
+            }
+        } catch (Exception ignored) { }
+        return false;
+    }
 
     private String findAddressInSnappWindows(AccessibilityNodeInfo root, String idSuffix) {
         String value = findAddressInNode(root, idSuffix);
