@@ -31,6 +31,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private String lastSpokenKey = "";
     private String lastWindowSignature = "";
     private MediaPlayer player;
+    // Once a Snapp event is seen, keep its report separately from analyzer-app events.
+    private boolean snappContextSeen = false;
 
     private final Runnable analyzePending = () -> {
         String snapshot = pendingEventText.toString();
@@ -61,15 +63,17 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             String eventPackage = event.getPackageName() == null ? "" : event.getPackageName().toString();
             String rootPackage = root != null && root.getPackageName() != null
                     ? root.getPackageName().toString() : "";
-            saveDiagnostic("رویداد دریافت شد | eventPackage=" + eventPackage + " | rootPackage=" + rootPackage + " | root=" + (root != null));
-
             boolean snappWindow = SNAPP_PACKAGE.equals(eventPackage) || SNAPP_PACKAGE.equals(rootPackage);
             if (!snappWindow) {
+                getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
+                        .putString("last_any_accessibility_event", "رویداد غیر اسنپ | eventPackage=" + eventPackage + " | rootPackage=" + rootPackage + " | root=" + (root != null))
+                        .apply();
                 handler.removeCallbacks(analyzePending);
                 scheduleOfferReset();
                 return;
             }
 
+            snappContextSeen = true;
             saveDiagnostic("رویداد اسنپ دریافت شد | eventPackage=" + eventPackage + " | rootPackage=" + rootPackage + " | root=" + (root != null));
             handler.removeCallbacks(resetOffer);
             StringBuilder collected = new StringBuilder();
@@ -170,8 +174,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
     private void saveDiagnostic(String report) {
         try {
-            getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
-                    .putString("last_accessibility_report", report).apply();
+            android.content.SharedPreferences.Editor editor =
+                    getSharedPreferences("voice_settings", MODE_PRIVATE).edit();
+            editor.putString("last_accessibility_report", report);
+            if (snappContextSeen) editor.putString("last_snapp_report", report);
+            editor.apply();
         } catch (Exception ignored) { }
     }
 
