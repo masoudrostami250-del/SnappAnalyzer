@@ -1,6 +1,7 @@
 package com.snapfloat;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.MediaPlayer;
@@ -85,7 +86,27 @@ public class MainActivity extends Activity {
         Button badTest = new Button(this);
         badTest.setText("تست صدای انتخاب‌شده: نرو");
         badTest.setOnClickListener(v -> playTest(getVoiceResource(false)));
+
         root.addView(badTest);
+
+        Button diagnostic = new Button(this);
+        diagnostic.setText("گزارش آخرین دریافت از اسنپ");
+        diagnostic.setOnClickListener(v -> {
+            String report = getPreferences().getString("last_accessibility_report",
+                    "هنوز گزارشی ثبت نشده است. برنامه را باز کنید، سپس پیشنهاد سفر اسنپ را روی صفحه بیاورید و دوباره این دکمه را بزنید.");
+            new AlertDialog.Builder(this)
+                    .setTitle("گزارش عیب‌یابی")
+                    .setMessage(report)
+                    .setPositiveButton("بستن", null)
+                    .setNeutralButton("کپی گزارش", (dialog, which) -> {
+                        android.content.ClipboardManager clipboard =
+                                (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("گزارش اسنپ", report));
+                        Toast.makeText(this, "گزارش کپی شد", Toast.LENGTH_SHORT).show();
+                    })
+                    .show();
+        });
+        root.addView(diagnostic);
 
         setContentView(root);
     }
