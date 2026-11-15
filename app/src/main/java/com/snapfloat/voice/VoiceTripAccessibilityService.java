@@ -70,6 +70,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 return;
             }
 
+            saveDiagnostic("رویداد اسنپ دریافت شد | eventPackage=" + eventPackage + " | rootPackage=" + rootPackage + " | root=" + (root != null));
             handler.removeCallbacks(resetOffer);
             StringBuilder collected = new StringBuilder();
 
