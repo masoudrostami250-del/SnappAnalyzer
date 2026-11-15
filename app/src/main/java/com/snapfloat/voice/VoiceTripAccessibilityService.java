@@ -10,6 +10,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
+import java.util.List;
 
 import com.snapfloat.R;
 
@@ -78,9 +80,18 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             handler.removeCallbacks(resetOffer);
             StringBuilder collected = new StringBuilder();
 
-            // Read the current visible window and the event payload together.
-            // Different Snapp releases expose some labels in only one of these sources.
+            // Read the active root, the event source, and every interactive Snapp window.
+            // Some Snapp trip-card elements are exposed in a separate accessibility window.
             if (root != null) collectText(root, collected);
+            AccessibilityNodeInfo eventSource = null;
+            try {
+                eventSource = event.getSource();
+                if (eventSource != null) collectText(eventSource, collected);
+            } catch (Exception ignored) { }
+            finally {
+                if (eventSource != null) try { eventSource.recycle(); } catch (Exception ignored) { }
+            }
+            collectSnappWindows(collected);
 
             if (event.getText() != null) {
                 for (CharSequence item : event.getText()) {
@@ -135,6 +146,32 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         }
     }
 
+
+    private void collectSnappWindows(StringBuilder out) {
+        List<AccessibilityWindowInfo> windows = null;
+        try {
+            windows = getWindows();
+            if (windows == null) return;
+            for (AccessibilityWindowInfo window : windows) {
+                if (window == null) continue;
+                AccessibilityNodeInfo windowRoot = null;
+                try {
+                    windowRoot = window.getRoot();
+                    if (windowRoot == null) continue;
+                    CharSequence pkg = windowRoot.getPackageName();
+                    if (pkg != null && SNAPP_PACKAGE.contentEquals(pkg)) {
+                        collectText(windowRoot, out);
+                    }
+                } catch (Exception e) {
+                    Log.w(TAG, "Could not inspect an interactive Snapp window", e);
+                } finally {
+                    if (windowRoot != null) try { windowRoot.recycle(); } catch (Exception ignored) { }
+                }
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not enumerate interactive windows", e);
+        }
+    }
 
     private static class PositionedText {
         final int top;
