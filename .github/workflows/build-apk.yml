@@ -76,3 +76,5 @@ jobs:
 # Diagnostic branch build enabled; OCR is intentionally not used.
 
 # Trigger a fresh build after fixing the diagnostic Java source.
+
+# Trigger build for active-offer fare selection fix.
