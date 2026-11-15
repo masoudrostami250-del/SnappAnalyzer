@@ -23,7 +23,6 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -101,7 +100,7 @@ public final class RouteDistanceClient {
                 Point destination = geocode(app, destinationAddress);
 
                 SharedPreferences settings = app.getSharedPreferences("route_settings", Context.MODE_PRIVATE);
-                String routerBase = cleanBase(settings.getString("router_base", DEFAULT_ROUTER));
+                String routerBase = cleanBase(settings.getString("router_base", DEFAULT_ROUTER), DEFAULT_ROUTER);
                 double[] legs = getRouteLegs(routerBase, driver, pickup, destination);
 
                 if (legs[0] <= 0 || legs[1] <= 0 || legs[0] > 150000 || legs[1] > 300000) {
@@ -242,7 +241,7 @@ public final class RouteDistanceClient {
         }
 
         SharedPreferences settings = context.getSharedPreferences("route_settings", Context.MODE_PRIVATE);
-        String base = cleanBase(settings.getString("geocoder_base", DEFAULT_GEOCODER));
+        String base = cleanBase(settings.getString("geocoder_base", DEFAULT_GEOCODER), DEFAULT_GEOCODER);
         String query = address.trim() + ", ایران";
         String url = base + "/search?format=jsonv2&addressdetails=1&limit=5"
                 + "&countrycodes=ir&accept-language=fa&q="
@@ -251,7 +250,6 @@ public final class RouteDistanceClient {
         throttle(false);
         String body = httpGet(url);
         JSONArray results = new JSONArray(body);
-        int bestIndex = -1;
         int bestScore = Integer.MIN_VALUE;
         Point bestPoint = null;
 
@@ -288,7 +286,6 @@ public final class RouteDistanceClient {
                     + (int) Math.round(item.optDouble("importance", 0.0) * 10);
             if (score > bestScore) {
                 bestScore = score;
-                bestIndex = i;
                 bestPoint = new Point(lat, lon);
             }
         }
@@ -386,10 +383,10 @@ public final class RouteDistanceClient {
         }
     }
 
-    private static String cleanBase(String value) {
+    private static String cleanBase(String value, String fallback) {
         String result = value == null ? "" : value.trim();
         while (result.endsWith("/")) result = result.substring(0, result.length() - 1);
-        if (result.isEmpty()) return DEFAULT_GEOCODER;
+        if (result.isEmpty()) return fallback;
         return result;
     }
 
