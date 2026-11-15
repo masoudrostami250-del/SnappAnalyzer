@@ -23,12 +23,10 @@ import android.view.WindowManager;
 import android.content.pm.ServiceInfo;
 
 
-import com.google.mlkit.vision.common.InputImage;
-import com.google.mlkit.vision.text.Text;
-import com.google.mlkit.vision.text.TextRecognition;
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
-import com.google.mlkit.vision.text.TextRecognizer;
-
+import com.googlecode.tesseract.android.TessBaseAPI;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 public class ScreenCaptureOcrService extends Service {
@@ -44,7 +42,7 @@ public class ScreenCaptureOcrService extends Service {
     private ImageReader imageReader;
     private HandlerThread workerThread;
     private Handler worker;
-    private TextRecognizer recognizer;
+    private TessBaseAPI recognizer;
     private long lastFrameAt = 0L;
     private int screenWidth;
     private int screenHeight;
@@ -57,7 +55,24 @@ public class ScreenCaptureOcrService extends Service {
         workerThread = new HandlerThread("snapp-ocr-worker");
         workerThread.start();
         worker = new Handler(workerThread.getLooper());
-        recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS);
+        try {
+            String basePath = new File(getFilesDir(), "tesseract").getAbsolutePath();
+            File tessdata = new File(basePath, "tessdata");
+            if (!tessdata.exists()) tessdata.mkdirs();
+            copyAssetIfMissing("tessdata/fas.traineddata", new File(tessdata, "fas.traineddata"));
+            copyAssetIfMissing("tessdata/eng.traineddata", new File(tessdata, "eng.traineddata"));
+            recognizer = new TessBaseAPI();
+            if (!recognizer.init(basePath, "fas+eng")) {
+                recognizer.end();
+                recognizer = null;
+                throw new IllegalStateException("Tesseract fas+eng initialization failed");
+            }
+            recognizer.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO);
+        } catch (Exception e) {
+            Log.e(TAG, "Could not initialize Persian OCR", e);
+            getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
+                    .putString("screen_ocr_status", "خطا در آماده‌سازی تشخیص متن فارسی: " + e.getMessage()).apply();
+        }
     }
 
     @Override
@@ -133,13 +148,11 @@ public class ScreenCaptureOcrService extends Service {
                 Bitmap frame = Bitmap.createBitmap(padded, 0, 0, screenWidth, screenHeight);
                 padded.recycle();
 
-                InputImage input = InputImage.fromBitmap(frame, 0);
-                recognizer.process(input)
-                        .addOnSuccessListener(result -> saveRecognizedText(result))
-                        .addOnFailureListener(error -> Log.w(TAG, "OCR frame failed", error))
-                        .addOnCompleteListener(task -> {
-                            try { frame.recycle(); } catch (Exception ignored) { }
-                        });
+                if (recognizer != null) {
+                    recognizer.setImage(frame);
+                    saveRecognizedText(recognizer.getUTF8Text());
+                }
+                try { frame.recycle(); } catch (Exception ignored) { }
             } catch (Exception e) {
                 Log.w(TAG, "Could not process captured frame", e);
             } finally {
@@ -158,16 +171,25 @@ public class ScreenCaptureOcrService extends Service {
                 .apply();
     }
 
-    private void saveRecognizedText(Text result) {
-        if (result == null) return;
-        String text = result.getText();
+    private void saveRecognizedText(String text) {
         if (text == null || text.trim().isEmpty()) return;
         getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
                 .putString("screen_ocr_text", text)
                 .putLong("screen_ocr_time", System.currentTimeMillis())
-                .putString("screen_ocr_status", "آخرین تصویر صفحه خوانده شد.")
+                .putString("screen_ocr_status", "متن فارسی و انگلیسی آخرین تصویر صفحه خوانده شد.")
                 .apply();
         Log.d(TAG, "OCR_TEXT=" + text);
+    }
+
+    private void copyAssetIfMissing(String assetName, File destination) throws Exception {
+        if (destination.exists() && destination.length() > 1000) return;
+        try (InputStream in = getAssets().open(assetName);
+             FileOutputStream out = new FileOutputStream(destination)) {
+            byte[] buffer = new byte[8192];
+            int count;
+            while ((count = in.read(buffer)) != -1) out.write(buffer, 0, count);
+            out.flush();
+        }
     }
 
     private Notification buildNotification() {
@@ -208,7 +230,7 @@ public class ScreenCaptureOcrService extends Service {
             projection = null;
         }
         if (recognizer != null) {
-            try { recognizer.close(); } catch (Exception ignored) { }
+            try { recognizer.end(); } catch (Exception ignored) { }
             recognizer = null;
         }
         if (workerThread != null) {

@@ -1,4 +1,4 @@
-name: Build Snapp Voice Screen OCR 17000 Pickup 2km v11
+name: Build Snapp Voice Persian OCR 17000 Pickup 2km v12
 
 on:
   push:
@@ -17,6 +17,7 @@ on:
       - voice-17000-pickup2km-route-v9
       - voice-17000-pickup2km-screen-distances-v10
       - voice-17000-pickup2km-screen-ocr-v11
+      - voice-17000-pickup2km-persian-ocr-v12
   workflow_dispatch:
 
 jobs:
@@ -64,6 +65,15 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Download Persian and English OCR models
+        shell: bash
+        run: |
+          mkdir -p app/src/main/assets/tessdata
+          curl -L --fail --retry 3 https://github.com/tesseract-ocr/tessdata_fast/raw/main/fas.traineddata -o app/src/main/assets/tessdata/fas.traineddata
+          curl -L --fail --retry 3 https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata -o app/src/main/assets/tessdata/eng.traineddata
+          test -s app/src/main/assets/tessdata/fas.traineddata
+          test -s app/src/main/assets/tessdata/eng.traineddata
+
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
 
@@ -75,7 +85,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: SnappVoice17000Pickup2km-ScreenOCR-v11
+          name: SnappVoice17000Pickup2km-PersianOCR-v12
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 

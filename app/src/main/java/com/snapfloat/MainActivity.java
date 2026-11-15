@@ -19,6 +19,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,6 +43,27 @@ public class MainActivity extends Activity {
         title.setText("تحلیل صوتی سفر اسنپ - خواندن کیلومترها");
         title.setTextSize(22);
         root.addView(title);
+
+        Button startOcr = new Button(this);
+        startOcr.setText("فعال‌سازی خواندن تصویری کیلومترها");
+        startOcr.setOnClickListener(v -> {
+            MediaProjectionManager manager = (MediaProjectionManager)
+                    getSystemService(MEDIA_PROJECTION_SERVICE);
+            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE);
+        });
+        root.addView(startOcr);
+
+        Button stopOcr = new Button(this);
+        stopOcr.setText("توقف خواندن تصویری صفحه");
+        stopOcr.setOnClickListener(v -> {
+            Intent stop = new Intent(this, ScreenCaptureOcrService.class);
+            stop.setAction(ScreenCaptureOcrService.ACTION_STOP);
+            startService(stop);
+            Toast.makeText(this, "درخواست توقف خواندن تصویری ارسال شد.", Toast.LENGTH_SHORT).show();
+        });
+        root.addView(stopOcr);
+
+
 
         TextView rules = new TextView(this);
         rules.setText(
@@ -118,25 +140,6 @@ public class MainActivity extends Activity {
         });
         root.addView(structureDiagnostic);
 
-        Button startOcr = new Button(this);
-        startOcr.setText("فعال‌سازی خواندن تصویری کیلومترها");
-        startOcr.setOnClickListener(v -> {
-            MediaProjectionManager manager = (MediaProjectionManager)
-                    getSystemService(MEDIA_PROJECTION_SERVICE);
-            startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE);
-        });
-        root.addView(startOcr);
-
-        Button stopOcr = new Button(this);
-        stopOcr.setText("توقف خواندن تصویری صفحه");
-        stopOcr.setOnClickListener(v -> {
-            Intent stop = new Intent(this, ScreenCaptureOcrService.class);
-            stop.setAction(ScreenCaptureOcrService.ACTION_STOP);
-            startService(stop);
-            Toast.makeText(this, "درخواست توقف خواندن تصویری ارسال شد.", Toast.LENGTH_SHORT).show();
-        });
-        root.addView(stopOcr);
-
         TextView captureInfo = new TextView(this);
         captureInfo.setText("برای خواندن کیلومترهایی که اسنپ در متن دسترس‌پذیری نشان نمی‌دهد، این گزینه را فعال کنید و اجازه ضبط صفحه را بدهید. تصویر صفحه ذخیره یا ارسال نمی‌شود؛ فقط متن به‌صورت محلی استخراج می‌شود. GPS و نقشه استفاده نمی‌شود.");
         captureInfo.setTextSize(14);
@@ -151,7 +154,10 @@ public class MainActivity extends Activity {
         attribution.setTextSize(12);
         root.addView(attribution);
 
-        setContentView(root);
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(true);
+        scrollView.addView(root);
+        setContentView(scrollView);
     }
 
     @Override
