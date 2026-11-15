@@ -33,6 +33,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private final StringBuilder pendingEventText = new StringBuilder();
     private String lastSpokenKey = "";
     private String lastWindowSignature = "";
+    private String lastOfferIdentity = "";
     private String pendingPickupAddress = "";
     private String pendingDestinationAddress = "";
     private boolean routeAnalysisInProgress = false;
@@ -52,6 +53,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         lastSpokenKey = "";
         pendingEventText.setLength(0);
         lastWindowSignature = "";
+        lastOfferIdentity = "";
         pendingPickupAddress = "";
         pendingDestinationAddress = "";
         routeAnalysisInProgress = false;
@@ -138,6 +140,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             if (!lastWindowSignature.isEmpty() && !signature.contains(lastWindowSignature)
                     && !lastWindowSignature.contains(signature)) {
                 pendingEventText.setLength(0);
+                lastOfferIdentity = "";
+                lastSpokenKey = "";
                 pendingPickupAddress = "";
                 pendingDestinationAddress = "";
                 routeAnalysisInProgress = false;
@@ -147,6 +151,21 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             lastWindowSignature = signature;
             if (!currentPickupAddress.trim().isEmpty()) pendingPickupAddress = currentPickupAddress.trim();
             if (!currentDestinationAddress.trim().isEmpty()) pendingDestinationAddress = currentDestinationAddress.trim();
+
+            Long identityFare = findFare(normalizeDigits(current));
+            if (identityFare != null && !currentPickupAddress.trim().isEmpty()
+                    && !currentDestinationAddress.trim().isEmpty()) {
+                String identity = identityFare + "|" + currentPickupAddress.trim()
+                        + "|" + currentDestinationAddress.trim();
+                if (!lastOfferIdentity.isEmpty() && !lastOfferIdentity.equals(identity)) {
+                    pendingEventText.setLength(0);
+                    lastSpokenKey = "";
+                    routeAnalysisInProgress = false;
+                    lastRouteRequestKey = "";
+                    analysisGeneration++;
+                }
+                lastOfferIdentity = identity;
+            }
 
             saveDiagnostic("متن صفحه اسنپ دریافت شد:\n" + current.substring(0, Math.min(current.length(), 3500)));
             String normalizedCurrent = normalizeDigits(current);
