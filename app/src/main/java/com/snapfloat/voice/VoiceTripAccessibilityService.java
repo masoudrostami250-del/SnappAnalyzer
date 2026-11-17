@@ -58,15 +58,20 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             boolean activeOffer = prefs.getBoolean("active_offer_visible", false);
             long offerSeenAt = prefs.getLong("active_offer_seen_at", 0L);
             String ocr = prefs.getString("screen_ocr_text", "");
+            String positionedOcrLines = prefs.getString("screen_ocr_lines", "");
             long capturedAt = prefs.getLong("screen_ocr_time", 0L);
             boolean freshOcr = !ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 6000L;
             if (!activeOffer || System.currentTimeMillis() - offerSeenAt > 5000L) { analysisRetries = 0; return; }
             if (freshOcr && findDistances(normalizeDigits(snapshot)).size() < 2) combined = snapshot + " " + ocr;
+            if (freshOcr && !positionedOcrLines.trim().isEmpty()) {
+                analyzeOffer(combined, positionedOcrLines);
+                return;
+            }
         } catch (Exception e) { Log.w(TAG, "Could not read latest screen OCR text", e); }
         if (!combined.trim().isEmpty()) {
             if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); return; }
             analysisRetries = 0;
-            analyzeOffer(combined);
+            analyzeOffer(combined, "");
         } else if (analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); }
     };
     private void scheduleAnalyzeRetry() {
@@ -524,7 +529,35 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 + "|" + Math.round(destinationKm * 10.0);
     }
 
-    private void analyzeOffer(String raw) {
+    private static class PositionedDistance {
+        final int top;
+        final double km;
+        PositionedDistance(int top, double km) { this.top = top; this.km = km; }
+    }
+
+    private ArrayList<Double> findDistancesByScreenPosition(String positionedLines) {
+        ArrayList<PositionedDistance> found = new ArrayList<>();
+        if (positionedLines == null || positionedLines.trim().isEmpty()) return new ArrayList<>();
+        String[] lines = positionedLines.split("\\n");
+        for (String line : lines) {
+            String[] parts = line.split("\\|", 2);
+            if (parts.length != 2) continue;
+            try {
+                int top = Integer.parseInt(parts[0].trim());
+                ArrayList<Double> values = findDistances(normalizeDigits(parts[1]));
+                if (!values.isEmpty()) found.add(new PositionedDistance(top, values.get(0)));
+            } catch (Exception ignored) { }
+        }
+        Collections.sort(found, Comparator.comparingInt(item -> item.top));
+        ArrayList<Double> result = new ArrayList<>();
+        for (PositionedDistance item : found) {
+            if (result.size() >= 2) break;
+            result.add(item.km);
+        }
+        return result;
+    }
+
+    private void analyzeOffer(String raw, String positionedOcrLines) {
         String text = normalizeDigits(raw).toLowerCase(Locale.ROOT);
         Long fare = findFare(text);
         if (fare == null || fare <= 0) {
@@ -533,7 +566,14 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             return;
         }
 
-        ArrayList<Double> distances = findDistances(text);
+        // Use actual vertical OCR coordinates: upper distance is pickup,
+        // lower distance is the trip length to destination.
+        ArrayList<Double> distances = findDistancesByScreenPosition(positionedOcrLines);
+        String distanceSource = "OCR با ترتیب عمودی صفحه";
+        if (distances.size() < 2) {
+            distances = findDistances(text);
+            distanceSource = "متن صفحه اسنپ";
+        }
         if (distances.size() < 2) {
             saveDiagnostic("مبلغ سفر پیدا شد (" + fare + ") اما دو عدد کیلومتر از صفحه اسنپ خوانده نشد. "
                     + "این نسخه فقط از دو فاصله نمایش‌داده‌شده در خود اسنپ استفاده می‌کند و GPS یا نقشه ندارد. "
@@ -547,7 +587,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         // the second (lower) visible distance is pickup-to-destination.
         double pickupKm = distances.get(0);
         double destinationKm = distances.get(1);
-        completeAnalysis(fare, pickupKm, destinationKm, "دو کیلومتر خوانده‌شده از صفحه اسنپ");
+        completeAnalysis(fare, pickupKm, destinationKm, distanceSource);
     }
 
     private void completeAnalysis(long fare, double pickupKm, double destinationKm, String source) {
