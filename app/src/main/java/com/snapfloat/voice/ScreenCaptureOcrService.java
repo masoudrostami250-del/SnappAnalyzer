@@ -186,8 +186,8 @@ public class ScreenCaptureOcrService extends Service {
                 android.graphics.Rect bounds =
                         iterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE);
                 if (line != null && !line.trim().isEmpty() && bounds != null) {
-                    if (out.length() > 0) out.append('\\n');
-                    out.append(bounds.top).append('|').append(line.replace('\\n', ' '));
+                    if (out.length() > 0) out.append('\n');
+                    out.append(bounds.top).append('|').append(line.replace('\n', ' '));
                 }
             } while (iterator.next(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE));
         } catch (Exception e) {
