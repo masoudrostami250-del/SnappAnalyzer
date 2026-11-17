@@ -24,6 +24,7 @@ import android.content.pm.ServiceInfo;
 
 
 import com.googlecode.tesseract.android.TessBaseAPI;
+import com.googlecode.tesseract.android.ResultIterator;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -150,7 +151,8 @@ public class ScreenCaptureOcrService extends Service {
 
                 if (recognizer != null) {
                     recognizer.setImage(frame);
-                    saveRecognizedText(recognizer.getUTF8Text());
+                    String recognized = recognizer.getUTF8Text();
+                    saveRecognizedText(recognized, collectPositionedLines());
                 }
                 try { frame.recycle(); } catch (Exception ignored) { }
             } catch (Exception e) {
@@ -171,14 +173,39 @@ public class ScreenCaptureOcrService extends Service {
                 .apply();
     }
 
-    private void saveRecognizedText(String text) {
+    // Preserve OCR line coordinates: the upper trip-card distance is pickup,
+    // and the lower distance is the trip length. Text order alone is not reliable.
+    private String collectPositionedLines() {
+        StringBuilder out = new StringBuilder();
+        try {
+            ResultIterator iterator = recognizer.getResultIterator();
+            if (iterator == null) return "";
+            iterator.begin();
+            do {
+                String line = iterator.getUTF8Text(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE);
+                android.graphics.Rect bounds =
+                        iterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE);
+                if (line != null && !line.trim().isEmpty() && bounds != null) {
+                    if (out.length() > 0) out.append('\\n');
+                    out.append(bounds.top).append('|').append(line.replace('\\n', ' '));
+                }
+            } while (iterator.next(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE));
+        } catch (Exception e) {
+            Log.w(TAG, "Could not collect positioned OCR lines", e);
+        }
+        return out.toString();
+    }
+
+    private void saveRecognizedText(String text, String positionedLines) {
         if (text == null || text.trim().isEmpty()) return;
         getSharedPreferences("voice_settings", MODE_PRIVATE).edit()
                 .putString("screen_ocr_text", text)
+                .putString("screen_ocr_lines", positionedLines == null ? "" : positionedLines)
                 .putLong("screen_ocr_time", System.currentTimeMillis())
-                .putString("screen_ocr_status", "متن فارسی و انگلیسی آخرین تصویر صفحه خوانده شد.")
+                .putString("screen_ocr_status", "متن و موقعیت سطرهای تصویر آخر صفحه خوانده شد.")
                 .apply();
         Log.d(TAG, "OCR_TEXT=" + text);
+        Log.d(TAG, "OCR_POSITIONED_LINES=" + positionedLines);
     }
 
     private void copyAssetIfMissing(String assetName, File destination) throws Exception {
