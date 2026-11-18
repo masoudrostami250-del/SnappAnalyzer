@@ -87,7 +87,8 @@ public class MainActivity extends Activity {
                 "صدای زن پیش‌فرض",
                 "صدای ویدئو - گزینه ۱",
                 "صدای ویدئو - گزینه ۲",
-                "صدای ویدئو - گزینه ۳"
+                "صدای ویدئو - گزینه ۳",
+                "صدای پنجعلی و بهبود - گزینه ۴"
         };
         int selected = getPreferences().getInt(VOICE_KEY, 0);
         for (int i = 0; i < labels.length; i++) {
@@ -100,7 +101,7 @@ public class MainActivity extends Activity {
         root.addView(voiceChoices);
         voiceChoices.setOnCheckedChangeListener((group, checkedId) -> {
             int choice = checkedId - 100;
-            if (choice >= 0 && choice <= 3) {
+            if (choice >= 0 && choice <= 4) {
                 getPreferences().edit().putInt(VOICE_KEY, choice).apply();
                 Toast.makeText(this, "صدای انتخاب‌شده ذخیره شد", Toast.LENGTH_SHORT).show();
             }
@@ -328,6 +329,7 @@ public class MainActivity extends Activity {
             case 1: return go ? R.raw.voice1_go : R.raw.voice1_stop;
             case 2: return go ? R.raw.voice2_go : R.raw.voice2_stop;
             case 3: return go ? R.raw.voice3_go : R.raw.voice3_stop;
+            case 4: return go ? R.raw.voice4_go : R.raw.voice4_stop;
             default: return go ? R.raw.voice_go : R.raw.voice_stop;
         }
     }
