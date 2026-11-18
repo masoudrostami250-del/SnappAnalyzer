@@ -23,17 +23,14 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Generate natural female Persian audio with Microsoft Neural
+      - name: Install original fifth voice recordings
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install edge-tts
           mkdir -p app/src/main/res/raw
-          edge-tts --voice fa-IR-DilaraNeural --text "برو" --write-media app/src/main/res/raw/voice_go.mp3
-          edge-tts --voice fa-IR-DilaraNeural --text "نرو" --write-media app/src/main/res/raw/voice_stop.mp3
-          test -s app/src/main/res/raw/voice_go.mp3
-          test -s app/src/main/res/raw/voice_stop.mp3
-          ls -lh app/src/main/res/raw/
+          unzip -o voice5-audio-files-8kbps.zip -d app/src/main/res/raw
+          test -s app/src/main/res/raw/voice4_go.mp3
+          test -s app/src/main/res/raw/voice4_stop.mp3
+          ls -lh app/src/main/res/raw/voice4_*.mp3
 
       - name: Install Android SDK packages
         shell: bash
@@ -74,4 +71,3 @@ jobs:
           name: SnappVoice17000Pickup2km-Voice5-Panjali-Behbood
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
