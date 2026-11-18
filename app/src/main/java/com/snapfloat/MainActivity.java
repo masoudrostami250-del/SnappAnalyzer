@@ -88,7 +88,7 @@ public class MainActivity extends Activity {
                 "صدای ویدئو - گزینه ۱",
                 "صدای ویدئو - گزینه ۲",
                 "صدای ویدئو - گزینه ۳",
-                "صدای پنجعلی و بهبود - گزینه ۴"
+                "صدای پنجعلی و بهبود - گزینه ۵"
         };
         int selected = getPreferences().getInt(VOICE_KEY, 0);
         for (int i = 0; i < labels.length; i++) {
