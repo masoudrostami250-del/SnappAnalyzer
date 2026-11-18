@@ -715,7 +715,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             case 2: return go ? R.raw.voice2_go : R.raw.voice2_stop;
             case 3: return go ? R.raw.voice3_go : R.raw.voice3_stop;
             case 4: return go ? R.raw.voice4_go : R.raw.voice4_stop;
-            default: return go ? R.raw.voice_go : R.raw.voice_stop;
+            default: return go ? R.raw.voice1_go : R.raw.voice1_stop;
         }
     }
 
