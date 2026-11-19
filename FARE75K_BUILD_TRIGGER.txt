@@ -1,0 +1,1 @@
+Build trigger for separate 17000 destination rate + pickup <=2km + minimum fare 75000 female voice app.
