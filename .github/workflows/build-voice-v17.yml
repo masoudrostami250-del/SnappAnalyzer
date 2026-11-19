@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - voice5-panjali-behbood
+      - voice5-pickup2km-fare90k
   workflow_dispatch:
 
 jobs:
