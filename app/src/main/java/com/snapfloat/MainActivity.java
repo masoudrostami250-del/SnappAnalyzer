@@ -17,7 +17,6 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(32, 32, 32, 32);
@@ -29,14 +28,14 @@ public class MainActivity extends Activity {
 
         TextView rules = new TextView(this);
         rules.setText(
-                "قانون برنامه:\\n" +
-                "• مبدأ تا ۲ کیلومتر و مقصد حداقل ۱۷ هزار تومان برای هر کیلومتر: «برو»\\n" +
-                "• مبدأ بیشتر از ۲ کیلومتر: «نرو»\\n" +
-                "• مقصد کمتر از ۱۷ هزار تومان برای هر کیلومتر: «نرو»\\n\\n" +
-                "محاسبه نرخ فقط با مسافت مقصد انجام می‌شود؛ مسافت مبدأ به نرخ مقصد اضافه نمی‌شود.\\n" +
-                "اگر فاصله مبدأ و مقصد هر دو قابل تشخیص نباشند، برنامه سفر را تأیید نمی‌کند.\\n" +
+                "قوانین این نسخه:\\n" +
+                "• مبدأ حداکثر ۲ کیلومتر باشد.\\n" +
+                "• کرایه حداقل ۷۵ هزار تومان باشد.\\n" +
+                "• نرخ مقصد حداقل ۱۷ هزار تومان برای هر کیلومتر باشد.\\n" +
+                "• نرخ فقط از تقسیم کرایه بر کیلومتر مقصد محاسبه می‌شود؛ مبدأ به مقصد اضافه نمی‌شود.\\n\\n" +
+                "اگر هر سه شرط برقرار باشد صدای زنانه «برو» و در غیر این صورت «نرو» پخش می‌شود.\\n" +
                 "برای هر پیشنهاد سفر فقط یک بار صدا پخش می‌شود.\\n" +
-                "صدای زن فارسی داخل برنامه ذخیره شده و آفلاین پخش می‌شود.\\n\\n" +
+                "صدای فارسی داخل برنامه ذخیره شده و آفلاین است.\\n\\n" +
                 "برای کارکرد برنامه، دسترسی‌پذیری را فعال کنید."
         );
         rules.setTextSize(17);
@@ -57,7 +56,6 @@ public class MainActivity extends Activity {
         badTest.setText("تست صدای خانم: نرو");
         badTest.setOnClickListener(v -> playTest(R.raw.voice_stop));
         root.addView(badTest);
-
         setContentView(root);
     }
 
