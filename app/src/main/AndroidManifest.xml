@@ -12,7 +12,7 @@
 
     <application
         android:theme="@style/AppTheme"
-        android:label="Snapp Voice Screen Distances 17000 + Pickup 2km"
+        android:label="Snapp Voice 17000 + Pickup 2km + Fare 90k"
         android:allowBackup="false"
         android:supportsRtl="true">
 
