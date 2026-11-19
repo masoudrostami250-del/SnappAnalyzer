@@ -22,7 +22,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// v17: detect offers by Snapp's acceptOfferButton ID; read route km values with OCR.
+// v18: isolate each offer snapshot and reject OCR frames belonging to the previous card.
 public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String TAG = "SnappVoice17000Pickup2km";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
@@ -30,6 +30,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final double MAX_PICKUP_KM = 2.0;
     private static final long ANALYZE_DELAY_MS = 200L;
     private static final long RESET_DELAY_MS = 7000L;
+    private static final long MAX_OCR_AGE_MS = 1500L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final StringBuilder pendingEventText = new StringBuilder();
@@ -39,6 +40,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private String lastOcrOfferSignature = "";
     private long lastOcrOfferCaptureTime = 0L;
     private String lastWindowSignature = "";
+    private long currentOfferStartedAtMs = 0L;
     private String lastOfferIdentity = "";
     private String pendingPickupAddress = "";
     private String pendingDestinationAddress = "";
@@ -51,8 +53,9 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
     private int analysisRetries = 0;
     private final Runnable analyzePending = () -> {
+        // Every analysis uses one current offer snapshot. Never append OCR from a
+        // different frame/card to accessibility text from this offer.
         String snapshot = pendingEventText.toString();
-        String combined = snapshot;
         try {
             android.content.SharedPreferences prefs = getSharedPreferences("voice_settings", MODE_PRIVATE);
             boolean activeOffer = prefs.getBoolean("active_offer_visible", false);
@@ -60,19 +63,53 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             String ocr = prefs.getString("screen_ocr_text", "");
             String positionedOcrLines = prefs.getString("screen_ocr_lines", "");
             long capturedAt = prefs.getLong("screen_ocr_time", 0L);
-            boolean freshOcr = !ocr.trim().isEmpty() && System.currentTimeMillis() - capturedAt <= 6000L;
-            if (!activeOffer || System.currentTimeMillis() - offerSeenAt > 5000L) { analysisRetries = 0; return; }
-            if (freshOcr && findDistances(normalizeDigits(snapshot)).size() < 2) combined = snapshot + " " + ocr;
-            if (freshOcr && !positionedOcrLines.trim().isEmpty()) {
-                analyzeOffer(combined, positionedOcrLines);
+            long now = System.currentTimeMillis();
+            boolean freshOcr = !ocr.trim().isEmpty()
+                    && now - capturedAt >= 0L
+                    && now - capturedAt <= MAX_OCR_AGE_MS
+                    && currentOfferStartedAtMs > 0L
+                    && capturedAt >= currentOfferStartedAtMs;
+            if (!activeOffer || now - offerSeenAt > 5000L) { analysisRetries = 0; return; }
+
+            Long snapshotFare = findFare(normalizeDigits(snapshot));
+            Long ocrFare = freshOcr ? findFare(normalizeDigits(ocr)) : null;
+            boolean sameOfferFrame = snapshotFare != null && ocrFare != null
+                    && snapshotFare.longValue() == ocrFare.longValue();
+
+            // OCR distances are accepted only when the fare in that exact OCR
+            // frame matches the fare in the current accessibility snapshot.
+            if (sameOfferFrame && !positionedOcrLines.trim().isEmpty()
+                    && findDistances(normalizeDigits(ocr)).size() >= 2) {
+                analysisRetries = 0;
+                analyzeOffer(ocr, positionedOcrLines);
                 return;
             }
-        } catch (Exception e) { Log.w(TAG, "Could not read latest screen OCR text", e); }
-        if (!combined.trim().isEmpty()) {
-            if (findDistances(normalizeDigits(combined)).size() < 2 && analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); return; }
+
+            // If OCR is still catching up to a newly displayed card, wait for its
+            // next frame instead of speaking a decision using the previous card.
+            if (freshOcr && !sameOfferFrame && analysisRetries < 20) {
+                analysisRetries++;
+                scheduleAnalyzeRetry();
+                return;
+            }
+
+            // Accessibility-only fallback is safe only from this single current
+            // window snapshot; old partial event payloads are never accumulated.
+            if (!snapshot.trim().isEmpty()
+                    && findDistances(normalizeDigits(snapshot)).size() >= 2) {
+                analysisRetries = 0;
+                analyzeOffer(snapshot, "");
+            } else if (analysisRetries < 20) {
+                analysisRetries++;
+                scheduleAnalyzeRetry();
+            } else {
+                analysisRetries = 0;
+                saveDiagnostic("کارت سفر شناسایی شد اما اطلاعات همین کارت کامل نبود؛ برای جلوگیری از اعلام نتیجه اشتباه، سکوت شد.");
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not read latest screen OCR text", e);
             analysisRetries = 0;
-            analyzeOffer(combined, "");
-        } else if (analysisRetries < 20) { analysisRetries++; scheduleAnalyzeRetry(); }
+        }
     };
     private void scheduleAnalyzeRetry() {
         handler.postDelayed(analyzePending, 200L);
@@ -82,6 +119,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         // Keep the last spoken trip key across temporary app/window focus changes.
         pendingEventText.setLength(0);
         lastWindowSignature = "";
+        currentOfferStartedAtMs = 0L;
         lastOfferIdentity = "";
         pendingPickupAddress = "";
         pendingDestinationAddress = "";
@@ -154,13 +192,18 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                         + nodeDump.substring(0, Math.min(nodeDump.length(), 14000)));
             }
 
-            if (event.getText() != null) {
-                for (CharSequence item : event.getText()) {
-                    if (item != null && item.length() > 0) collected.append(' ').append(item);
+            // Root/window text is the authoritative current screen snapshot.
+            // Event payloads can describe a previous card during rapid transitions,
+            // so use them only when no current window text could be read.
+            if (collected.length() == 0) {
+                if (event.getText() != null) {
+                    for (CharSequence item : event.getText()) {
+                        if (item != null && item.length() > 0) collected.append(' ').append(item);
+                    }
                 }
-            }
-            if (event.getContentDescription() != null) {
-                collected.append(' ').append(event.getContentDescription());
+                if (event.getContentDescription() != null) {
+                    collected.append(' ').append(event.getContentDescription());
+                }
             }
 
             String current = collected.toString().trim();
@@ -190,15 +233,17 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
             // Window changes separate old offer text from the next offer.
             String signature = current.length() > 180 ? current.substring(0, 180) : current;
-            if (!lastWindowSignature.isEmpty() && !signature.contains(lastWindowSignature)
-                    && !lastWindowSignature.contains(signature)) {
+            if (currentOfferStartedAtMs == 0L) {
+                currentOfferStartedAtMs = System.currentTimeMillis();
+            }
+            if (!lastWindowSignature.isEmpty() && !signature.equals(lastWindowSignature)) {
                 pendingEventText.setLength(0);
                 lastOfferIdentity = "";
-                // A layout/text refresh is not proof of a new trip; keep speech deduplication.
                 pendingPickupAddress = "";
                 pendingDestinationAddress = "";
                 routeAnalysisInProgress = false;
                 lastRouteRequestKey = "";
+                currentOfferStartedAtMs = System.currentTimeMillis();
                 analysisGeneration++;
             }
             lastWindowSignature = signature;
@@ -214,6 +259,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                     pendingEventText.setLength(0);
                     routeAnalysisInProgress = false;
                     lastRouteRequestKey = "";
+                    currentOfferStartedAtMs = System.currentTimeMillis();
                     analysisGeneration++;
                 }
                 lastOfferIdentity = identity;
@@ -223,19 +269,10 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             String normalizedCurrent = normalizeDigits(current);
             boolean completeSnapshot = findFare(normalizedCurrent) != null
                     && findDistances(normalizedCurrent).size() >= 2;
-            if (completeSnapshot) {
-                // A complete window snapshot replaces older partial events, avoiding
-                // duplicate distance pairs when Android emits repeated content events.
-                pendingEventText.setLength(0);
-                pendingEventText.append(current);
-            } else if (!pendingEventText.toString().contains(current)) {
-                // Keep unique partial event payloads until a complete snapshot arrives.
-                pendingEventText.append(' ').append(current);
-                // Bound memory if a screen continuously emits changing accessibility text.
-                if (pendingEventText.length() > 24000) {
-                    pendingEventText.delete(0, pendingEventText.length() - 16000);
-                }
-            }
+            // Replace the buffer on every event. Accumulating partial payloads can
+            // mix fare/distances from adjacent offers when cards arrive back-to-back.
+            pendingEventText.setLength(0);
+            pendingEventText.append(current);
             handler.removeCallbacks(analyzePending);
             analysisRetries = 0;
             handler.postDelayed(analyzePending, ANALYZE_DELAY_MS);
