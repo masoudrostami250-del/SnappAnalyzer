@@ -10,8 +10,8 @@ android {
         applicationId 'com.snapfloat.voice17000pickup2kmscreendistances'
         minSdk 23
         targetSdk 35
-        versionCode 4
-        versionName '1.3-consecutive-card-fix'
+        versionCode 5
+        versionName '1.3.1-consecutive-card-fix-75k'
     }
 
     dependencies {
