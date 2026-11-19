@@ -23,16 +23,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Generate natural female Persian audio
+      - name: Install original recordings from the 90k app
         shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install edge-tts
           mkdir -p app/src/main/res/raw
-          edge-tts --voice fa-IR-DilaraNeural --text "برو" --write-media app/src/main/res/raw/voice_go.mp3
-          edge-tts --voice fa-IR-DilaraNeural --text "نرو" --write-media app/src/main/res/raw/voice_stop.mp3
-          test -s app/src/main/res/raw/voice_go.mp3
-          test -s app/src/main/res/raw/voice_stop.mp3
+          BASE="https://raw.githubusercontent.com/masoudrostami250-del/SnappAnalyzer/voice5-pickup2km-fare90k"
+          for name in voice1_go voice1_stop voice2_go voice2_stop voice3_go voice3_stop; do
+            curl -L --fail --retry 3 "$BASE/app/src/main/res/raw/$name.ogg" -o "app/src/main/res/raw/$name.ogg"
+            test -s "app/src/main/res/raw/$name.ogg"
+          done
+          curl -L --fail --retry 3 "$BASE/voice5-audio-files-8kbps.zip" -o /tmp/voice5-audio-files.zip
+          unzip -o /tmp/voice5-audio-files.zip -d app/src/main/res/raw
+          test -s app/src/main/res/raw/voice4_go.mp3
+          test -s app/src/main/res/raw/voice4_stop.mp3
 
       - name: Install Android SDK packages
         shell: bash
