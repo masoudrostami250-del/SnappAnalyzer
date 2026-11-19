@@ -7,11 +7,11 @@ android {
     compileSdk 35
 
     defaultConfig {
-        applicationId 'com.snapfloat.voice17000pickup2kmscreendistances'
+        applicationId 'com.snapfloat.voice17000pickup2kmfare90k'
         minSdk 23
         targetSdk 35
-        versionCode 3
-        versionName '1.2-persian-screen-ocr'
+        versionCode 1
+        versionName '1.0-fare90k'
     }
 
     dependencies {
