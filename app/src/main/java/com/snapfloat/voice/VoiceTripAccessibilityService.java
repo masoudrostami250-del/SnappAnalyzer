@@ -3,6 +3,7 @@ package com.snapfloat.voice;
 import android.accessibilityservice.AccessibilityService;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
+import android.media.PlaybackParams;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -255,19 +256,30 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         handler.postDelayed(resetOffer, RESET_DELAY_MS);
     }
 
+    private int getVoiceResource(boolean go) {
+        int choice = getSharedPreferences("voice_settings", MODE_PRIVATE).getInt("selected_voice", 0);
+        switch (choice) {
+            case 1: return go ? R.raw.voice1_go : R.raw.voice1_stop;
+            case 2: return go ? R.raw.voice2_go : R.raw.voice2_stop;
+            case 3: return go ? R.raw.voice3_go : R.raw.voice3_stop;
+            case 4: return go ? R.raw.voice4_go : R.raw.voice4_stop;
+            default: return go ? R.raw.voice1_go : R.raw.voice1_stop;
+        }
+    }
+
     private void playPhrase(String phrase) {
-        int sound = "برو".equals(phrase) ? R.raw.voice_go : R.raw.voice_stop;
+        int sound = getVoiceResource("برو".equals(phrase));
         try {
             releasePlayer();
             player = MediaPlayer.create(this, sound);
             if (player == null) {
-                Log.e(TAG, "Could not create female audio player for " + phrase);
+                Log.e(TAG, "Could not create original Persian voice player for " + phrase);
                 return;
             }
-            player.setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build());
+            player.setVolume(1.0f, 1.0f);
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                player.setPlaybackParams(new PlaybackParams().setSpeed(1.30f).setPitch(1.0f));
+            }
             player.setOnCompletionListener(mp -> releasePlayer());
             player.setOnErrorListener((mp, what, extra) -> {
                 Log.e(TAG, "Audio playback error what=" + what + " extra=" + extra);
@@ -276,7 +288,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             });
             player.start();
         } catch (Exception e) {
-            Log.e(TAG, "Female audio playback failed", e);
+            Log.e(TAG, "Original voice playback failed", e);
             releasePlayer();
         }
     }
