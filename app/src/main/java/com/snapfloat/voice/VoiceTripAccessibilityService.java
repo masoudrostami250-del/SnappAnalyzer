@@ -17,10 +17,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class VoiceTripAccessibilityService extends AccessibilityService {
-    private static final String TAG = "SnappVoice17000Pickup2km";
+    private static final String TAG = "Snapp17000Pickup2kmFare75k";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
     private static final double MAX_PICKUP_KM = 2.0;
+    private static final long MIN_FARE_TOMAN = 75000L;
     private static final long ANALYZE_DELAY_MS = 350L;
     private static final long RESET_DELAY_MS = 1800L;
 
@@ -44,20 +45,18 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     @Override
     protected void onServiceConnected() {
         super.onServiceConnected();
-        Log.i(TAG, "Female Persian offline audio service connected");
+        Log.i(TAG, "Female Persian voice service connected");
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event == null) return;
-
         AccessibilityNodeInfo root = null;
         try {
             root = getRootInActiveWindow();
             String eventPackage = event.getPackageName() == null ? "" : event.getPackageName().toString();
             String rootPackage = root != null && root.getPackageName() != null
                     ? root.getPackageName().toString() : "";
-
             boolean snappWindow = SNAPP_PACKAGE.equals(eventPackage) || SNAPP_PACKAGE.equals(rootPackage);
             if (!snappWindow) {
                 handler.removeCallbacks(analyzePending);
@@ -67,19 +66,13 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
             handler.removeCallbacks(resetOffer);
             StringBuilder collected = new StringBuilder();
-
-            // Read the current visible window and the event payload together.
-            // Different Snapp releases expose some labels in only one of these sources.
             if (root != null) collectText(root, collected);
-
             if (event.getText() != null) {
                 for (CharSequence item : event.getText()) {
                     if (item != null && item.length() > 0) collected.append(' ').append(item);
                 }
             }
-            if (event.getContentDescription() != null) {
-                collected.append(' ').append(event.getContentDescription());
-            }
+            if (event.getContentDescription() != null) collected.append(' ').append(event.getContentDescription());
 
             String current = collected.toString().trim();
             if (current.isEmpty()) {
@@ -87,24 +80,18 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 return;
             }
 
-            // Window changes separate old offer text from the next offer.
             String signature = current.length() > 180 ? current.substring(0, 180) : current;
             if (!lastWindowSignature.isEmpty() && !signature.contains(lastWindowSignature)
-                    && !lastWindowSignature.contains(signature)) {
-                pendingEventText.setLength(0);
-            }
+                    && !lastWindowSignature.contains(signature)) pendingEventText.setLength(0);
             lastWindowSignature = signature;
 
             String normalizedCurrent = normalizeDigits(current);
             boolean completeSnapshot = findFare(normalizedCurrent) != null
                     && findDistances(normalizedCurrent).size() >= 2;
             if (completeSnapshot) {
-                // A complete window snapshot replaces older partial events, avoiding
-                // duplicate distance pairs when Android emits repeated content events.
                 pendingEventText.setLength(0);
                 pendingEventText.append(current);
             } else if (!pendingEventText.toString().contains(current)) {
-                // Keep unique partial event payloads until a complete snapshot arrives.
                 pendingEventText.append(' ').append(current);
             }
             handler.removeCallbacks(analyzePending);
@@ -126,7 +113,6 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             if (text != null && text.length() > 0) out.append(' ').append(text);
             CharSequence description = node.getContentDescription();
             if (description != null && description.length() > 0) out.append(' ').append(description);
-
             for (int i = 0; i < node.getChildCount(); i++) {
                 AccessibilityNodeInfo child = node.getChild(i);
                 if (child != null) {
@@ -149,7 +135,6 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
 
         ArrayList<Double> distances = findDistances(text);
         if (distances.size() < 2) {
-            // Do not guess when the pickup and destination cannot both be identified.
             scheduleOfferReset();
             return;
         }
@@ -160,13 +145,11 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
                 "(?:مقصد|مسافت\\s*تا\\s*مقصد)");
         double pickupKm;
         double destinationKm;
-
         if (labelledPickup != null && labelledDestination != null) {
             pickupKm = labelledPickup;
             destinationKm = labelledDestination;
         } else {
-            // Compatibility fallback for layouts that show two distances without labels.
-            // Keep duplicates: pickup=1km and destination=1km is a valid display.
+            // Retain two displayed distances, including equal pickup and destination values.
             pickupKm = distances.get(0);
             destinationKm = distances.get(1);
         }
@@ -176,10 +159,12 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             return;
         }
 
+        // Destination-only rate: pickup distance is never added to destination distance.
         double tomanPerKm = fare / destinationKm;
         boolean pickupAllowed = pickupKm <= MAX_PICKUP_KM;
-        boolean fareAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
-        String phrase = pickupAllowed && fareAllowed ? "برو" : "نرو";
+        boolean fareAmountAllowed = fare >= MIN_FARE_TOMAN;
+        boolean destinationRateAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
+        String phrase = pickupAllowed && fareAmountAllowed && destinationRateAllowed ? "برو" : "نرو";
 
         String key = fare + "|" + Math.round(pickupKm * 1000.0)
                 + "|" + Math.round(destinationKm * 1000.0);
@@ -190,7 +175,8 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         Log.i(TAG, "VOICE_RESULT=" + phrase + " pickupKm=" + pickupKm
                 + " destinationKm=" + destinationKm + " fare=" + fare
                 + " tomanPerKm=" + tomanPerKm + " pickupAllowed=" + pickupAllowed
-                + " fareAllowed=" + fareAllowed);
+                + " fareAmountAllowed=" + fareAmountAllowed
+                + " destinationRateAllowed=" + destinationRateAllowed);
         playPhrase(phrase);
     }
 
@@ -205,9 +191,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
             String unit = m.group(2).toLowerCase(Locale.ROOT);
             if (unit.equals("متر") || unit.equals("m")) value /= 1000.0;
             return value > 0 && value <= 100 ? value : null;
-        } catch (Exception ignored) {
-            return null;
-        }
+        } catch (Exception ignored) { return null; }
     }
 
     private ArrayList<Double> findDistances(String text) {
@@ -231,7 +215,6 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         collectFares(Pattern.compile("(?:تومان|تومن|ریال)\\s*([0-9][0-9,\\.\\s]*)").matcher(text), fares);
         collectFares(Pattern.compile("([0-9][0-9,\\.\\s]*)\\s*(?:تومان|تومن|ریال)").matcher(text), fares);
         if (fares.isEmpty()) {
-            // Some layouts put the amount next to a fare label without repeating the currency.
             Matcher labelled = Pattern.compile("(?:مبلغ|کرایه|هزینه)[^0-9]{0,25}([0-9][0-9,\\.\\s]{2,})")
                     .matcher(text);
             while (labelled.find()) addFare(labelled.group(1), fares);
