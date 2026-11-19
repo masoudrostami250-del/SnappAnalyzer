@@ -24,9 +24,10 @@ import java.util.regex.Pattern;
 
 // v17: detect offers by Snapp's acceptOfferButton ID; read route km values with OCR.
 public class VoiceTripAccessibilityService extends AccessibilityService {
-    private static final String TAG = "SnappVoice17000Pickup2km";
+    private static final String TAG = "SnappVoice17000Pickup2kmFare90k";
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
+    private static final long MIN_FARE_TOMAN = 90000L;
     private static final double MAX_PICKUP_KM = 2.0;
     private static final long ANALYZE_DELAY_MS = 200L;
     private static final long RESET_DELAY_MS = 7000L;
@@ -558,8 +559,9 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         }
         double tomanPerKm = fare / destinationKm;
         boolean pickupAllowed = pickupKm <= MAX_PICKUP_KM;
-        boolean fareAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
-        String phrase = pickupAllowed && fareAllowed ? "برو" : "نرو";
+        boolean rateAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
+        boolean minimumFareAllowed = fare >= MIN_FARE_TOMAN;
+        String phrase = pickupAllowed && rateAllowed && minimumFareAllowed ? "برو" : "نرو";
 
         // Round distances to 0.1 km so minor OCR fluctuations do not re-announce one offer.
         String key = makeTripKey(fare, pickupKm, destinationKm);
@@ -575,11 +577,12 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         saveDiagnostic("تحلیل کامل شد: " + phrase + " | روش=" + source + " | کرایه=" + fare
                 + " | فاصله مبدأ/راننده=" + pickupKm + " کیلومتر"
                 + " | فاصله مقصد=" + destinationKm + " کیلومتر"
-                + " | نرخ مقصد=" + tomanPerKm + " تومان/کیلومتر");
+                + " | نرخ مقصد=" + tomanPerKm + " تومان/کیلومتر"
+                + " | حداقل کرایه ۹۰ هزار=" + minimumFareAllowed);
         Log.i(TAG, "VOICE_RESULT=" + phrase + " source=" + source + " pickupKm=" + pickupKm
                 + " destinationKm=" + destinationKm + " fare=" + fare
                 + " tomanPerKm=" + tomanPerKm + " pickupAllowed=" + pickupAllowed
-                + " fareAllowed=" + fareAllowed);
+                + " rateAllowed=" + rateAllowed + " minimumFareAllowed=" + minimumFareAllowed);
         playPhrase(phrase);
     }
 
