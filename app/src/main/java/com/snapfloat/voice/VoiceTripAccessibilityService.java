@@ -28,6 +28,7 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
     private static final String SNAPP_PACKAGE = "cab.snapp.driver";
     private static final double MIN_TOMAN_PER_KM = 17000.0;
     private static final double MAX_PICKUP_KM = 2.0;
+    private static final long MIN_FARE_TOMAN = 75000L;
     private static final long ANALYZE_DELAY_MS = 200L;
     private static final long RESET_DELAY_MS = 7000L;
     private static final long MAX_OCR_AGE_MS = 1500L;
@@ -635,8 +636,9 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         }
         double tomanPerKm = fare / destinationKm;
         boolean pickupAllowed = pickupKm <= MAX_PICKUP_KM;
-        boolean fareAllowed = tomanPerKm >= MIN_TOMAN_PER_KM;
-        String phrase = pickupAllowed && fareAllowed ? "برو" : "نرو";
+        boolean destinationRateAllowed = tomanPerKm > MIN_TOMAN_PER_KM;
+        boolean minimumFareAllowed = fare >= MIN_FARE_TOMAN;
+        String phrase = pickupAllowed && destinationRateAllowed && minimumFareAllowed ? "برو" : "نرو";
 
         // Round distances to 0.1 km so minor OCR fluctuations do not re-announce one offer.
         String key = makeTripKey(fare, pickupKm, destinationKm);
@@ -652,11 +654,13 @@ public class VoiceTripAccessibilityService extends AccessibilityService {
         saveDiagnostic("تحلیل کامل شد: " + phrase + " | روش=" + source + " | کرایه=" + fare
                 + " | فاصله مبدأ/راننده=" + pickupKm + " کیلومتر"
                 + " | فاصله مقصد=" + destinationKm + " کیلومتر"
-                + " | نرخ مقصد=" + tomanPerKm + " تومان/کیلومتر");
+                + " | نرخ مقصد=" + tomanPerKm + " تومان/کیلومتر"
+                + " | حداقل کرایه=" + MIN_FARE_TOMAN + " | شرط کرایه=" + minimumFareAllowed);
         Log.i(TAG, "VOICE_RESULT=" + phrase + " source=" + source + " pickupKm=" + pickupKm
                 + " destinationKm=" + destinationKm + " fare=" + fare
                 + " tomanPerKm=" + tomanPerKm + " pickupAllowed=" + pickupAllowed
-                + " fareAllowed=" + fareAllowed);
+                + " destinationRateAllowed=" + destinationRateAllowed
+                + " minimumFareAllowed=" + minimumFareAllowed);
         playPhrase(phrase);
     }
 
